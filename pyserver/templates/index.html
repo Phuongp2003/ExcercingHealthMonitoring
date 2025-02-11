@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OxiSensor Data</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+</head>
+<body>
+    <h1>OxiSensor Data</h1>
+    <p>Heart Rate: <span id="heart_rate">N/A</span></p>
+    <p>Oxygen Saturation: <span id="oxygen_saturation">N/A</span></p>
+
+    <script>
+        const socket = io();
+
+        socket.on('update', function(data) {
+            document.getElementById('heart_rate').innerText = data.heart_rate;
+            document.getElementById('oxygen_saturation').innerText = data.oxygen_saturation;
+        });
+    </script>
+</body>
+</html>
