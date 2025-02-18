@@ -1,12 +1,16 @@
 import socket
 import time
+import matplotlib.pyplot as plt
+import numpy as np
 
 class Server:
-    def __init__(self, processor, socketio, esp_info):
+    def __init__(self, processor, esp_info):
         self.processor = processor
-        self.socketio = socketio
         self.esp_info = esp_info
         self.partial_data = ""
+        self.ir_data = []
+        self.red_data = []
+        self.green_data = []
 
     def listen_for_data(self):
         while True:
@@ -25,55 +29,36 @@ class Server:
                                 data = conn.recv(4096)
                                 if not data:
                                     break
-                                print(f"Data received: {data.decode()}")
-                                self.handle_received_data(data.decode(), conn)
+                                print(f"Data received: {data}")
+                                self.handle_received_data(data)
                         print(f"Disconnected from {addr}")
             except Exception as e:
                 print(f"Error: {e}. Reconnecting in 5 seconds...")
                 time.sleep(5)
 
-    def handle_received_data(self, data, conn):
-        self.partial_data += data
-        if "\n" in self.partial_data:
-            line, self.partial_data = self.partial_data.split("\n", 1)
-        else:
-            line = self.partial_data
-            self.partial_data = ""
-        try:
-            if line.strip() == "ping":
-                conn.sendall("pong".encode())
-                print("Ping acknowledged")
+    def handle_received_data(self, data):
+        self.partial_data += data.decode('latin1')
+        while len(self.partial_data) >= 13:  # 1 byte marker + 3 * 4 bytes values
+            if self.partial_data[0] == '\xAA':  # Check for the marker
+                packet = self.partial_data[:13]
+                self.partial_data = self.partial_data[13:]
+                ir_value = int.from_bytes(packet[1:5].encode('latin1'), 'little')
+                red_value = int.from_bytes(packet[5:9].encode('latin1'), 'little')
+                green_value = int.from_bytes(packet[9:13].encode('latin1'), 'little')
+                self.ir_data.append(ir_value)
+                self.red_data.append(red_value)
+                self.green_data.append(green_value)
+                self.update_plot()
             else:
-                print(f"Handling data: {line.strip()}")
-                self.handle_data(line.strip())
-        except Exception as e:
-            print(f"Error handling received data: {e}")
+                self.partial_data = self.partial_data[1:]
 
-    def handle_data(self, data):
-        try:
-            values = [int(x, 16) for x in data.split(',')]
-            ir_signal = values[0::3]
-            red_signal = values[1::3]
-            green_signal = values[2::3]
-            print(f"IR Signal: {ir_signal}")
-            print(f"Red Signal: {red_signal}")
-            print(f"Green Signal: {green_signal}")
-
-            heart_rate, oxygen_saturation = self.processor.process_signal(ir_signal, red_signal, green_signal)
-            if heart_rate is not None and oxygen_saturation is not None:
-                print(f"Heart rate: {heart_rate} bpm, Oxygen saturation: {oxygen_saturation:.2f}%")
-                self.socketio.emit('update', {'heart_rate': heart_rate, 'oxygen_saturation': oxygen_saturation})
-            else:
-                print("No valid heart rate or oxygen saturation calculated.")
-        except ValueError as e:
-            print(f"Error parsing data: {e}")
-        except Exception as e:
-            print(f"Unexpected error: {e}")
-
-    def handle_frequency_change(self, command):
-        frequency = command.split(':')[1]
-        print(f"Changing frequency to {frequency}")
-        # Add any additional handling if needed
+    def update_plot(self):
+        plt.clf()
+        plt.plot(self.ir_data[-100:], label='IR')
+        plt.plot(self.red_data[-100:], label='Red')
+        plt.plot(self.green_data[-100:], label='Green')
+        plt.legend()
+        plt.pause(0.01)
 
     def listen_for_discovery(self):
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as udp_socket:

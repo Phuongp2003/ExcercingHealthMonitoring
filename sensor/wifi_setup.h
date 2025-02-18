@@ -1,9 +1,11 @@
 #ifndef WIFI_SETUP_H
 #define WIFI_SETUP_H
 
-#include "config.h"
+#include "config.h" // import udpPort, serverIP, ssid, password, serverPort
 
-void discoverServer() {
+// Function to discover the server on the network
+void discoverServer()
+{
   udp.begin(udpPort);
   Serial.println("Broadcasting discovery message...");
 
@@ -12,13 +14,16 @@ void discoverServer() {
   udp.endPacket();
 
   unsigned long startTime = millis();
-  while (millis() - startTime < 3000) {
+  while (millis() - startTime < 3000)
+  {
     int packetSize = udp.parsePacket();
-    if (packetSize) {
+    if (packetSize)
+    {
       char buffer[32];
       udp.read(buffer, packetSize);
       buffer[packetSize] = '\0';
-      if (String(buffer).startsWith("SERVER_IP:")) {
+      if (String(buffer).startsWith("SERVER_IP:"))
+      {
         serverIP.fromString(String(buffer).substring(10));
         Serial.print("Found Server at: ");
         Serial.println(serverIP);
@@ -29,25 +34,32 @@ void discoverServer() {
   udp.stop();
 }
 
-void setupWiFi() {
+// Function to set up WiFi connection
+void setupWiFi()
+{
   WiFi.begin(ssid, password);
-  
-  while (WiFi.status() != WL_CONNECTED) {
+
+  while (WiFi.status() != WL_CONNECTED)
+  {
     delay(1000);
     Serial.print(".");
   }
   Serial.println("\nWiFi connected!");
   Serial.println(WiFi.localIP());
 
-  if (serverIP == IPAddress(0, 0, 0, 0)) {
+  if (serverIP == IPAddress(0, 0, 0, 0))
+  {
     Serial.println("Can't connect to default server, finding...");
     discoverServer();
   }
   Serial.println("Connected to server!");
 
-  if (client.connect(serverIP, serverPort)) {
+  if (client.connect(serverIP, serverPort))
+  {
     Serial.println("Connected to server.");
-  } else {
+  }
+  else
+  {
     Serial.println("Connection to server failed.");
   }
 }

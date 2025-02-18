@@ -1,36 +1,36 @@
 #ifndef SERVER_COMMUNICATION_H
 #define SERVER_COMMUNICATION_H
 
-#include "config.h"
+#include "config.h" // Import particleSensor
 
-void handleServerCommunication() {
-  long irValue = particleSensor.getIR();
-  long redValue = particleSensor.getRed();
-  long greenValue = particleSensor.getGreen();
-  
-  irBuffer[bufferIndex] = irValue;
-  redBuffer[bufferIndex] = redValue;
-  greenBuffer[bufferIndex] = greenValue;
-  bufferIndex++;
+// Gửi 1 tín hiệu mỗi (0) ms cho server
+void handleServerCommunication()
+{
+  // Gửi tín hiệu từ cả 3 kênh đến server
+  uint32_t irValue = particleSensor.getIR();
+  uint32_t redValue = particleSensor.getRed();
+  uint32_t greenValue = particleSensor.getGreen();
 
-  if (bufferIndex >= currentBufferSize) {
-    String dataToSend = "";
+  uint8_t buffer[1 + 3 * sizeof(uint32_t)]; // Thêm 1 byte cho ký hiệu
+  size_t index = 0;
 
-    for (int i = 0; i < currentBufferSize; i++) {
-      dataToSend += String(irBuffer[i], HEX) + "," + String(redBuffer[i], HEX) + "," + String(greenBuffer[i], HEX);
-      if (i < currentBufferSize - 1) {
-        dataToSend += ",";
-      }
-    }
+  buffer[index++] = 0xAA; // Ký hiệu đánh dấu bắt đầu dữ liệu
 
-    client.print(dataToSend);
-    Serial.println("Data sent to server:");
-    Serial.println(dataToSend);
+  memcpy(&buffer[index], &irValue, sizeof(uint32_t));
+  index += sizeof(uint32_t);
+  memcpy(&buffer[index], &redValue, sizeof(uint32_t));
+  index += sizeof(uint32_t);
+  memcpy(&buffer[index], &greenValue, sizeof(uint32_t));
+  index += sizeof(uint32_t);
 
-    bufferIndex = 0;
+  client.write(buffer, index);
+  Serial.println("Data sent to server:");
+  for (size_t i = 0; i < index; i++)
+  {
+    Serial.print(buffer[i], HEX);
+    Serial.print(" ");
   }
-
-  delay(10);
+  Serial.println();
 }
 
 #endif
