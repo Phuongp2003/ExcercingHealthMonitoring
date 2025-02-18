@@ -21,24 +21,24 @@ logging.basicConfig(level=logging.DEBUG)
 # Global variable to store ESP connection info
 esp_info = {}
 
-def send_command_to_esp(command):
-    print(esp_info)
-    if 'ip' in esp_info and 'port' in esp_info:
-        try:
-            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                s.connect((esp_info['ip'], esp_info['port']))
-                s.sendall(command.encode())
-                s.close()
-        except ConnectionRefusedError:
-            logging.error("Connection refused by the ESP device")
-        except Exception as e:
-            logging.error(f"Error sending command to ESP: {e}")
-    else:
-        logging.error("ESP info not available")
+# def send_command_to_esp(command):
+#     print(esp_info)
+#     if 'ip' in esp_info and 'port' in esp_info:
+#         try:
+#             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+#                 s.connect((esp_info['ip'], esp_info['port']))
+#                 s.sendall(command.encode())
+#                 s.close()
+#         except ConnectionRefusedError:
+#             logging.error("Connection refused by the ESP device")
+#         except Exception as e:
+#             logging.error(f"Error sending command to ESP: {e}")
+#     else:
+#         logging.error("ESP info not available")
 
-@app.route('/')
-def index():
-    return render_template('index.html')
+# @app.route('/')
+# def index():
+#     return render_template('index.html')
 
 if __name__ == "__main__":
     processor = SignalProcessor()
