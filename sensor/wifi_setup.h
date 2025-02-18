@@ -3,7 +3,8 @@
 
 #include "config.h" // import udpPort, serverIP, ssid, password, serverPort
 
-// Function to discover the server on the network
+// NOTE: Không sử dụng
+// Truy tìm server socket bằng UDP
 void discoverServer()
 {
   udp.begin(udpPort);
@@ -34,7 +35,7 @@ void discoverServer()
   udp.stop();
 }
 
-// Function to set up WiFi connection
+// Xử lý kết nối wifi
 void setupWiFi()
 {
   WiFi.begin(ssid, password);

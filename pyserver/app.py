@@ -26,8 +26,11 @@ esp_info = {}
 #     return render_template('index.html')
 
 if __name__ == "__main__":
+    # Khởi tạo server
     processor = SignalProcessor()
     server = Server(processor, esp_info)
+
+    # Khởi tạo PLT
     plt.ion()
     plt.show()
     try:

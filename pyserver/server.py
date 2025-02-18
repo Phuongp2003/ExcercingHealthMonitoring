@@ -12,6 +12,7 @@ class Server:
         self.red_data = []
         self.green_data = []
 
+    # Xác nhận kết nối từ ESP, xử lý luồng nhận
     def listen_for_data(self):
         while True:
             try:
@@ -36,6 +37,7 @@ class Server:
                 print(f"Error: {e}. Reconnecting in 5 seconds...")
                 time.sleep(5)
 
+    # Xử lý dữ liệu nhận
     def handle_received_data(self, data):
         self.partial_data += data.decode('latin1')
         while len(self.partial_data) >= 13:  # 1 byte marker + 3 * 4 bytes values
@@ -52,6 +54,7 @@ class Server:
             else:
                 self.partial_data = self.partial_data[1:]
 
+    # Cập nhật đồ thị đã khởi tạo. NOTE: cần khởi tạo 1 plt trước
     def update_plot(self):
         plt.clf()
         plt.plot(self.ir_data[-100:], label='IR')
@@ -60,6 +63,7 @@ class Server:
         plt.legend()
         plt.pause(0.01)
 
+    # Không sử dụng: mở server cho việc truy tìm của ESP
     def listen_for_discovery(self):
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as udp_socket:
             udp_socket.bind(("0.0.0.0", 8888))
