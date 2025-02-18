@@ -21,7 +21,7 @@ void setup()
 
 void loop()
 {
-  if (client.connected())
+  if (client.connected()) 
   {
     handleServerCommunication();
   }

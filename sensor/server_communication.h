@@ -9,9 +9,8 @@ void handleServerCommunication()
   // Gửi tín hiệu từ cả 3 kênh đến server
   uint32_t irValue = particleSensor.getIR();
   uint32_t redValue = particleSensor.getRed();
-  uint32_t greenValue = particleSensor.getGreen();
 
-  uint8_t buffer[1 + 3 * sizeof(uint32_t)]; // Thêm 1 byte cho ký hiệu
+  uint8_t buffer[1 + 2 * sizeof(uint32_t)]; // Thêm 1 byte cho ký hiệu
   size_t index = 0;
 
   buffer[index++] = 0xAA; // Ký hiệu đánh dấu bắt đầu dữ liệu
@@ -19,8 +18,6 @@ void handleServerCommunication()
   memcpy(&buffer[index], &irValue, sizeof(uint32_t));
   index += sizeof(uint32_t);
   memcpy(&buffer[index], &redValue, sizeof(uint32_t));
-  index += sizeof(uint32_t);
-  memcpy(&buffer[index], &greenValue, sizeof(uint32_t));
   index += sizeof(uint32_t);
 
   client.write(buffer, index);
@@ -31,6 +28,7 @@ void handleServerCommunication()
     Serial.print(" ");
   }
   Serial.println();
+  delay(50);
 }
 
 #endif

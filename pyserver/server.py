@@ -40,16 +40,14 @@ class Server:
     # Xử lý dữ liệu nhận
     def handle_received_data(self, data):
         self.partial_data += data.decode('latin1')
-        while len(self.partial_data) >= 13:  # 1 byte marker + 3 * 4 bytes values
+        while len(self.partial_data) >= 9:  # 1 byte marker + 2 * 4 bytes values
             if self.partial_data[0] == '\xAA':  # Check for the marker
-                packet = self.partial_data[:13]
-                self.partial_data = self.partial_data[13:]
+                packet = self.partial_data[:9]
+                self.partial_data = self.partial_data[9:]
                 ir_value = int.from_bytes(packet[1:5].encode('latin1'), 'little')
                 red_value = int.from_bytes(packet[5:9].encode('latin1'), 'little')
-                green_value = int.from_bytes(packet[9:13].encode('latin1'), 'little')
                 self.ir_data.append(ir_value)
                 self.red_data.append(red_value)
-                self.green_data.append(green_value)
                 self.update_plot()
             else:
                 self.partial_data = self.partial_data[1:]
@@ -59,7 +57,6 @@ class Server:
         plt.clf()
         plt.plot(self.ir_data[-100:], label='IR')
         plt.plot(self.red_data[-100:], label='Red')
-        plt.plot(self.green_data[-100:], label='Green')
         plt.legend()
         plt.pause(0.01)
 

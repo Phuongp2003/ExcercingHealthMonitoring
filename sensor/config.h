@@ -16,13 +16,5 @@ IPAddress serverIP(192, 168, 1, 27); // IP default của máy tính khi phát wi
 const int serverPort = 8882;
 
 MAX30105 particleSensor;
-// const int maxBufferSize = 100;
-// long irBuffer[maxBufferSize];
-// long redBuffer[maxBufferSize];
-// long greenBuffer[maxBufferSize];
-// int bufferIndex = 0;
-
-// int currentBufferSize = 100;
-// unsigned long lastSendTime = 0;
 
 #endif
