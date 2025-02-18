@@ -2,3 +2,4 @@ numpy
 flask
 scipy
 flask_socketio
+matplotlib
