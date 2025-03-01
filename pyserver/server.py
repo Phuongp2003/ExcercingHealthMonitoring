@@ -4,9 +4,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 class Server:
-    def __init__(self, processor, esp_info):
+    def __init__(self, processor, esp_info, csv_writer):
         self.processor = processor
         self.esp_info = esp_info
+        self.csv_writer = csv_writer
         self.partial_data = ""
         self.ir_data = []
         self.red_data = []
@@ -49,6 +50,9 @@ class Server:
                 self.ir_data.append(ir_value)
                 self.red_data.append(red_value)
                 self.update_plot()
+                # Write to CSV file
+                if self.csv_writer:
+                    self.csv_writer.writerow([time.strftime("%Y-%m-%d %H:%M:%S"), ir_value, red_value])
             else:
                 self.partial_data = self.partial_data[1:]
 
