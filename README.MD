@@ -19,3 +19,8 @@ pip install -r .\pyserver\requirements.txt
 ```bash
 python pyserver/app.py
 ```
+
+### Hiển thị dư liệu thu được
+```bash
+py .\read_and_plot_sensor_data.py
+```
