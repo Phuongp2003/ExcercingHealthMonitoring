@@ -2,128 +2,18 @@
 <html lang="en">
 	<head>
 		<meta charset="UTF-8" />
-		<meta
-			name="viewport"
-			content="width=device-width, initial-scale=1.0" />
-		<title>OxiSensor Data</title>
-		<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
-		<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+		<title>File List</title>
 	</head>
 	<body>
-		<h1>OxiSensor Data</h1>
-		<p>Heart Rate: <span id="heart_rate">N/A</span></p>
-		<p>Oxygen Saturation: <span id="oxygen_saturation">N/A</span></p>
-
-		<label for="updateFrequency">Update Frequency:</label>
-		<select id="updateFrequency">
-			<option value="1000">1 second</option>
-			<option value="2000">2 seconds</option>
-			<option value="5000">5 seconds</option>
-		</select>
-
-		<div class="graphs">
-			<div
-				id="heartRateChart"
-				style="width: 100%; height: 400px"></div>
-			<div
-				id="oxygenSaturationChart"
-				style="width: 100%; height: 400px"></div>
-		</div>
-
-		<script>
-			const socket = io();
-			let updateFrequency = 1000;
-
-			const heartRateChart = {
-				x: [],
-				y: [],
-				mode: 'lines',
-				name: 'Heart Rate (bpm)',
-				line: { color: 'rgba(255, 99, 132, 1)' },
-			};
-
-			const oxygenSaturationChart = {
-				x: [],
-				y: [],
-				mode: 'lines',
-				name: 'Oxygen Saturation (%)',
-				line: { color: 'rgba(54, 162, 235, 1)' },
-			};
-
-			Plotly.newPlot('heartRateChart', [heartRateChart], {
-				title: 'Heart Rate',
-				xaxis: { title: 'Time' },
-				yaxis: { title: 'Heart Rate (bpm)', range: [45, 155] },
-			});
-
-			Plotly.newPlot('oxygenSaturationChart', [oxygenSaturationChart], {
-				title: 'Oxygen Saturation',
-				xaxis: { title: 'Time' },
-				yaxis: { title: 'Oxygen Saturation (%)', range: [0, 100] },
-			});
-
-			function addSampleData() {
-				const now = new Date();
-				for (let i = 0; i < 3; i++) {
-					const time = new Date(now.getTime() + i * 1000);
-					heartRateChart.x.push(time);
-					heartRateChart.y.push(75);
-					oxygenSaturationChart.x.push(time);
-					oxygenSaturationChart.y.push(75);
-				}
-				Plotly.redraw('heartRateChart');
-				Plotly.redraw('oxygenSaturationChart');
-			}
-
-			function removeSampleData() {
-				heartRateChart.x = heartRateChart.x.filter(
-					(_, index) => heartRateChart.y[index] !== 75
-				);
-				heartRateChart.y = heartRateChart.y.filter(
-					(value) => value !== 75
-				);
-				oxygenSaturationChart.x = oxygenSaturationChart.x.filter(
-					(_, index) => oxygenSaturationChart.y[index] !== 75
-				);
-				oxygenSaturationChart.y = oxygenSaturationChart.y.filter(
-					(value) => value !== 75
-				);
-				Plotly.redraw('heartRateChart');
-				Plotly.redraw('oxygenSaturationChart');
-			}
-
-			socket.on('update', function (data) {
-				document.getElementById('heart_rate').innerText =
-					data.heart_rate;
-				document.getElementById('oxygen_saturation').innerText =
-					data.oxygen_saturation;
-
-				const now = new Date();
-				heartRateChart.x.push(now);
-				heartRateChart.y.push(data.heart_rate);
-				Plotly.redraw('heartRateChart');
-
-				oxygenSaturationChart.x.push(now);
-				oxygenSaturationChart.y.push(data.oxygen_saturation);
-				Plotly.redraw('oxygenSaturationChart');
-
-				// Remove sample data when real data is received
-				removeSampleData();
-			});
-
-			// Add sample data if no data is received within 5 seconds
-			setTimeout(() => {
-				if (heartRateChart.y.length === 0) {
-					addSampleData();
-				}
-			}, 5000);
-
-			document
-				.getElementById('updateFrequency')
-				.addEventListener('change', function () {
-					updateFrequency = parseInt(this.value);
-					socket.emit('changeFrequency', updateFrequency);
-				});
-		</script>
+		<h1>Available Files</h1>
+		<ul>
+			{% for file in files %}
+			<li>
+				<a href="{{ url_for('download_file', filename=file) }}"
+					>{{ file }}</a
+				>
+			</li>
+			{% endfor %}
+		</ul>
 	</body>
 </html>
