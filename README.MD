@@ -24,3 +24,8 @@ python pyserver/app.py
 ```bash
 py .\read_and_plot_sensor_data.py
 ```
+
+### Production
+```bash
+gunicorn --bind 0.0.0.0:5000 wsgi:app
+```
