@@ -43,6 +43,7 @@ if __name__ == "__main__":
     plt.show()
 
 
+    socketio.run(app, port=5000)
     try:
         server.listen_for_data()
     except Exception as e:
@@ -52,5 +53,3 @@ if __name__ == "__main__":
     finally:
         if csv_file:
             csv_file.close()
-
-    socketio.run(app, host="0.0.0.0", port=5000)
