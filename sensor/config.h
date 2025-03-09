@@ -17,7 +17,7 @@ const int serverPort = 8882;
 
 MAX30105 particleSensor;
 
-const char *serverUrl = "http://192.168.1.27:5000/data";
+const char *serverUrl = "https://oxinheartbeat.phuongy.works/data";
 const int sendInterval = 2000; // Interval in milliseconds (2 seconds)
 
 #endif

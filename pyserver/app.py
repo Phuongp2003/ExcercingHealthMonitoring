@@ -33,28 +33,28 @@ def receive_data():
     data = request.json
     if not data:
         return "Invalid data", 400
-    data_array = data.get('data')
-    if not data_array:
-        return "No data found", 400
-    for entry in data_array:
-        ir_value = entry.get('irValue')
-        red_value = entry.get('redValue')
-        timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+    for entry in data:
+        timestamp = time.strftime("%d/%b/%Y %H:%M:%S") + f".{int(time.time() * 1000) % 1000}"
+        ir_value = entry[1]
+        red_value = entry[2]
         if csv_writer:
             csv_writer.writerow([timestamp, ir_value, red_value])
     return "Data received", 200
+
+@app.route('/data/create_csv', methods=['POST'])
+def create_csv():
+    global csv_file, csv_writer
+    timestamp = time.strftime("%Y%m%d_%H%M%S")
+    csv_file = open(f"data/sensor_data_{timestamp}.csv", mode='w', newline='')
+    csv_writer = csv.writer(csv_file)
+    csv_writer.writerow(["time", "irvalue", "redvalue"])
+    return "CSV created", 200
 
 # Global variable for CSV file write stream
 csv_file = None
 csv_writer = None
 
 if __name__ == "__main__":
-    # Initialize CSV file
-    timestamp = time.strftime("%Y%m%d_%H%M%S")
-    csv_file = open(f"data/sensor_data_{timestamp}.csv", mode='w', newline='')
-    csv_writer = csv.writer(csv_file)
-    csv_writer.writerow(["time", "irvalue", "redvalue"])
-
     # Initialize server
     processor = SignalProcessor()
     server = Server(processor, esp_info, csv_writer)

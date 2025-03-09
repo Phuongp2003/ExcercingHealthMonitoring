@@ -21,8 +21,17 @@ void setup()
   setupSensor();
   Serial.println("Setup complete.");
 
-  // Add the server communication task to the scheduler
-  runner.addTask(serverCommunicationTask);
+  // Request server to create CSV file
+  if (requestServerToCreateCSV())
+  {
+    Serial.println("CSV file created on server.");
+    // Add the server communication task to the scheduler
+    runner.addTask(serverCommunicationTask);
+  }
+  else
+  {
+    Serial.println("Failed to create CSV file on server.");
+  }
 }
 
 void loop()
