@@ -48,7 +48,7 @@ if __name__ == "__main__":
     plt.ion()
     plt.show()
 
-    socketio.run(app, port=5000, allow_unsafe_werkzeug=True)
+    socketio.run(app, host='0.0.0.0', port=5000, allow_unsafe_werkzeug=True)
     try:
         server.listen_for_data()
     except Exception as e:
