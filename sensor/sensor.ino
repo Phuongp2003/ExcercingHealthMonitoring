@@ -21,14 +21,14 @@ void setup()
 
 void loop()
 {
-  if (client.connected()) 
+  if (client.connected())
   {
     handleServerCommunication();
   }
   else
   {
     Serial.println("Disconnected from server. Attempting to reconnect...");
-    if (client.connect(serverIP, serverPort))
+    if (client.connect(serverURL, serverPort))
     {
       Serial.println("Reconnected to server.");
       client.print("ping");

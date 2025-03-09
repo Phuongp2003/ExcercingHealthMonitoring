@@ -48,14 +48,8 @@ void setupWiFi()
   Serial.println("\nWiFi connected!");
   Serial.println(WiFi.localIP());
 
-  if (serverIP == IPAddress(0, 0, 0, 0))
-  {
-    Serial.println("Can't connect to default server, finding...");
-    discoverServer();
-  }
-  Serial.println("Connected to server!");
-
-  if (client.connect(serverIP, serverPort))
+  Serial.println("Connecting to server...");
+  if (client.connect(serverURL, serverPort))
   {
     Serial.println("Connected to server.");
   }
