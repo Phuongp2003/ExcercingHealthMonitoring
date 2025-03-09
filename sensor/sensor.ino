@@ -5,7 +5,10 @@
 #include "config.h"
 #include "wifi_setup.h"           // Import setupWiFi()
 #include "sensor_setup.h"         // Import setupSensor()
-#include "server_communication.h" // import handleServerCommunication();
+#include "server_communication.h" // import handleServerCommunication()
+#include <TaskScheduler.h>        // Include TaskScheduler library
+
+Scheduler runner; // Initialize TaskScheduler
 
 void setup()
 {
@@ -17,21 +20,13 @@ void setup()
   Serial.println("Setting up sensor...");
   setupSensor();
   Serial.println("Setup complete.");
+
+  // Add the server communication task to the scheduler
+  runner.addTask(serverCommunicationTask);
 }
 
 void loop()
 {
-  if (client.connected())
-  {
-    handleServerCommunication();
-  }
-  else
-  {
-    Serial.println("Disconnected from server. Attempting to reconnect...");
-    if (client.connect(serverURL, serverPort))
-    {
-      Serial.println("Reconnected to server.");
-      client.print("ping");
-    }
-  }
+  handleServerCommunication();
+  runner.execute(); // Execute scheduled tasks
 }

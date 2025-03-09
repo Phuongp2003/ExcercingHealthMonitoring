@@ -2,33 +2,90 @@
 #define SERVER_COMMUNICATION_H
 
 #include "config.h" // Import particleSensor
+#include <HTTPClient.h>
+#include <ArduinoJson.h>
+#include <TaskScheduler.h> // Include TaskScheduler library
+
+const int dataCollectionInterval = 20; // 50Hz = 20ms interval
+const int batchSize = 100;             // 1 second worth of data at 50Hz
+
+struct SensorData
+{
+  uint32_t irValue;
+  uint32_t redValue;
+};
+
+SensorData dataBatch[batchSize];
+int dataIndex = 0;
+
+// Function to send data to server
+void sendDataToServer()
+{
+  HTTPClient http;
+  http.begin(serverUrl);
+  http.addHeader("Content-Type", "application/json");
+
+  // Create JSON payload
+  DynamicJsonDocument doc(1024);
+  JsonArray dataArray = doc.createNestedArray("data");
+  for (int i = 0; i < batchSize; i++)
+  {
+    JsonObject dataObject = dataArray.createNestedObject();
+    dataObject["irValue"] = dataBatch[i].irValue;
+    dataObject["redValue"] = dataBatch[i].redValue;
+  }
+
+  String payload;
+  serializeJson(doc, payload);
+  Serial.print("Payload: ");
+  Serial.println(payload);
+
+  int httpResponseCode = http.POST(payload);
+
+  if (httpResponseCode > 0)
+  {
+    Serial.print("HTTP Response code: ");
+    Serial.println(httpResponseCode);
+    String response = http.getString();
+    Serial.print("Response: ");
+    Serial.println(response);
+  }
+  else
+  {
+    Serial.print("Error code: ");
+    Serial.println(httpResponseCode);
+    Serial.println("Failed to send data to server");
+  }
+
+  http.end();
+
+  Serial.println("Data batch sent to server");
+
+  // Reset data index for next batch
+  dataIndex = 0;
+}
+
+// Task to handle server communication
+Task serverCommunicationTask(0, TASK_FOREVER, &sendDataToServer);
 
 // Gửi 1 tín hiệu mỗi (0) ms cho server
 void handleServerCommunication()
 {
-  // Gửi tín hiệu từ cả 3 kênh đến server
-  uint32_t irValue = particleSensor.getIR();
-  uint32_t redValue = particleSensor.getRed();
-
-  uint8_t buffer[1 + 2 * sizeof(uint32_t)]; // Thêm 1 byte cho ký hiệu
-  size_t index = 0;
-
-  buffer[index++] = 0xAA; // Ký hiệu đánh dấu bắt đầu dữ liệu
-
-  memcpy(&buffer[index], &irValue, sizeof(uint32_t));
-  index += sizeof(uint32_t);
-  memcpy(&buffer[index], &redValue, sizeof(uint32_t));
-  index += sizeof(uint32_t);
-
-  client.write(buffer, index);
-  Serial.println("Data sent to server:");
-  for (size_t i = 0; i < index; i++)
+  // Collect data
+  if (dataIndex < batchSize)
   {
-    Serial.print(buffer[i], HEX);
-    Serial.print(" ");
+    dataBatch[dataIndex].irValue = particleSensor.getIR();
+    dataBatch[dataIndex].redValue = particleSensor.getRed();
+    Serial.print("IR:");
+    Serial.print(dataBatch[dataIndex].irValue);
+    Serial.print(" Red:");
+    Serial.println(dataBatch[dataIndex].redValue);
+    dataIndex++;
+    return;
   }
-  Serial.println();
-  delay(50);
+
+  // Schedule the server communication task
+  serverCommunicationTask.enable();
 }
 
 #endif

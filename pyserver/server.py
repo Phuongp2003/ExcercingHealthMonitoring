@@ -1,6 +1,5 @@
 import socket
 import time
-import matplotlib.pyplot as plt
 import numpy as np
 
 class Server:
@@ -49,20 +48,11 @@ class Server:
                 red_value = int.from_bytes(packet[5:9].encode('latin1'), 'little')
                 self.ir_data.append(ir_value)
                 self.red_data.append(red_value)
-                self.update_plot()
                 # Write to CSV file
                 if self.csv_writer:
                     self.csv_writer.writerow([time.strftime("%Y-%m-%d %H:%M:%S"), ir_value, red_value])
             else:
                 self.partial_data = self.partial_data[1:]
-
-    # Cập nhật đồ thị đã khởi tạo. NOTE: cần khởi tạo 1 plt trước
-    def update_plot(self):
-        plt.clf()
-        plt.plot(self.ir_data[-100:], label='IR')
-        plt.plot(self.red_data[-100:], label='Red')
-        plt.legend()
-        plt.pause(0.01)
 
     # Không sử dụng: mở server cho việc truy tìm của ESP
     def listen_for_discovery(self):

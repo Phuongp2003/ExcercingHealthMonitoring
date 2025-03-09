@@ -1,8 +1,7 @@
 import socket
-from flask import Flask, render_template, send_from_directory
+from flask import Flask, render_template, send_from_directory, request
 from flask_socketio import SocketIO
 import logging
-import matplotlib.pyplot as plt
 import time
 from server import Server
 from signal_processor import SignalProcessor
@@ -29,6 +28,22 @@ def index():
 def download_file(filename):
     return send_from_directory('data', filename)
 
+@app.route('/data', methods=['POST'])
+def receive_data():
+    data = request.json
+    if not data:
+        return "Invalid data", 400
+    data_array = data.get('data')
+    if not data_array:
+        return "No data found", 400
+    for entry in data_array:
+        ir_value = entry.get('irValue')
+        red_value = entry.get('redValue')
+        timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+        if csv_writer:
+            csv_writer.writerow([timestamp, ir_value, red_value])
+    return "Data received", 200
+
 # Global variable for CSV file write stream
 csv_file = None
 csv_writer = None
@@ -43,10 +58,6 @@ if __name__ == "__main__":
     # Initialize server
     processor = SignalProcessor()
     server = Server(processor, esp_info, csv_writer)
-
-    # Initialize PLT
-    plt.ion()
-    plt.show()
 
     socketio.run(app, host='0.0.0.0', port=5000, allow_unsafe_werkzeug=True)
     try:
