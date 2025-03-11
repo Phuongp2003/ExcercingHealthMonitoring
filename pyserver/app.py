@@ -1,17 +1,43 @@
+import socket
 import csv
 import time
 import os
 from flask import Flask, request, render_template, send_from_directory
-from flask_socketio import SocketIO, emit
+import threading
 
 app = Flask(__name__)
-socketio = SocketIO(app)
 
+TCP_PORT = 8888
 BUFFER_SIZE = 1024
 measurement_status = "Stopped"
 clients = []
 current_file = None
 writer = None
+
+def get_ip_address():
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        # doesn't even have to be reachable
+        s.connect(('10.254.254.254', 1))
+        ip = s.getsockname()[0]
+    except Exception:
+        ip = '0.0.0.0'
+    finally:
+        s.close()
+    return ip
+
+TCP_IP = get_ip_address()
+
+def start_tcp_server():
+    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server_socket.bind((TCP_IP, TCP_PORT))
+    server_socket.listen(5)
+    print("TCP server listening on", TCP_IP, ":", TCP_PORT)
+    while True:
+        client_socket, addr = server_socket.accept()
+        print("Connection from:", addr)
+        clients.append(client_socket)
+        threading.Thread(target=handle_client_connection, args=(client_socket,)).start()
 
 def handle_client_connection(client_socket):
     global writer
@@ -26,7 +52,7 @@ def handle_client_connection(client_socket):
 
 @app.route('/')
 def index():
-    return render_template('index.html', ip=request.host, port=5000, status=measurement_status)
+    return render_template('index.html', ip=TCP_IP, port=TCP_PORT, status=measurement_status)
 
 @app.route('/start')
 def start_measurement():
@@ -63,24 +89,3 @@ def download_file(filename):
 @app.route('/status')
 def get_status():
     return measurement_status
-
-@socketio.on('connect')
-def handle_connect():
-    print('Client connected')
-    clients.append(request.sid)
-
-@socketio.on('disconnect')
-def handle_disconnect():
-    print('Client disconnected')
-    clients.remove(request.sid)
-
-@socketio.on('start_measurement')
-def handle_start_measurement():
-    start_measurement()
-
-@socketio.on('stop_measurement')
-def handle_stop_measurement():
-    stop_measurement()
-
-if __name__ == '__main__':
-    socketio.run(app, host='0.0.0.0', port=5000)
