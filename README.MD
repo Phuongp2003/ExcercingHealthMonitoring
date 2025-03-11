@@ -13,6 +13,7 @@ python -m venv myenv
 ### Cài các thư viện cần thiết
 ```bash
 pip install -r .\pyserver\requirements.txt
+pip install flask-socketio
 ```
 
 ### Khởi chạy server
@@ -58,3 +59,11 @@ Trong file `config.h`, thay thế `your_domain_name.com` bằng địa chỉ IP 
 ```cpp
 const char* serverIP = "your_domain_name.com"; // Replace with your domain name
 ```
+
+### Kiểm tra và mở cổng 8888
+Đảm bảo rằng cổng 8888 được mở và có thể truy cập được. Sử dụng lệnh sau để kiểm tra:
+```bash
+nc -zv oxinheartbeat.phuongy.works 8888
+```
+
+Nếu cổng không mở, hãy cập nhật quy tắc tường lửa hoặc cấu hình máy chủ để cho phép kết nối đến cổng 8888.

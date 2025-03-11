@@ -2,7 +2,7 @@ import csv
 import time
 import os
 from flask import Flask, request, render_template, send_from_directory
-from flask_socketio import SocketIO
+from flask_socketio import SocketIO, emit
 
 app = Flask(__name__)
 socketio = SocketIO(app)
