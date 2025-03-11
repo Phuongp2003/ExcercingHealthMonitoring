@@ -7,8 +7,6 @@
 
 bool inSend = false;
 WiFiClient client;
-const char *serverIP = "192.168.1.27"; // Replace with your server IP
-const int serverPort = 8888;
 char dataBuffer[50]; // Pre-allocated buffer for data
 
 void setup()

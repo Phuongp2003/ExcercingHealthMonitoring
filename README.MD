@@ -54,7 +54,7 @@ curl http://localhost:5000/stop
 Truy cập `http://localhost:5000/files` để xem và tải các file đã ghi.
 
 ### Thiết lập IP server cho ESP8266
-Trong file `sensor.ino`, thay thế `your_server_ip` bằng địa chỉ IP của server.
+Trong file `config.h`, thay thế `your_domain_name.com` bằng địa chỉ IP hoặc tên miền của server.
 ```cpp
-const char* serverIP = "your_server_ip"; // Replace with your server IP
+const char* serverIP = "your_domain_name.com"; // Replace with your domain name
 ```
