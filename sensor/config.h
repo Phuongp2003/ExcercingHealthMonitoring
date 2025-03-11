@@ -12,7 +12,7 @@ const char *password = "n2heartb_oxi";
 
 // Server configuration
 const char *serverIP = "oxinheartbeat.phuongy.works"; 
-const int serverPort = 8888;
+const int serverPort = 5000;
 
 MAX30105 particleSensor;
 
