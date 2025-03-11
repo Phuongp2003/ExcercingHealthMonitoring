@@ -46,8 +46,9 @@ def handle_client_connection(client_socket):
         if not data:
             break
         print("Received data:", data)
-        for line in data.strip().split('\n'):
-            writer.writerow(line.split(','))
+        if writer:
+            for line in data.strip().split('\n'):
+                writer.writerow(line.split(','))
 
 @app.route('/')
 def index():
@@ -66,12 +67,14 @@ def start_measurement():
 
 @app.route('/stop')
 def stop_measurement():
-    global measurement_status, current_file
+    global measurement_status, current_file, writer
     for client_socket in clients:
         client_socket.sendall(b"STOP\n")
     measurement_status = "Stopped"
     if current_file:
         current_file.close()
+        current_file = None
+        writer = None
     return "Measurement stopped"
 
 @app.route('/files')

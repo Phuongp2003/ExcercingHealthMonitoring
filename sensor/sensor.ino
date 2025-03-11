@@ -26,16 +26,28 @@ void loop()
   if (!client.connected())
   {
     Serial.println("Connecting to server...");
-    if (client.connect(serverIP, serverPort))
+    Serial.print("Resolving domain: ");
+    Serial.println(serverIP);
+    IPAddress serverIPAddr;
+    if (WiFi.hostByName(serverIP, serverIPAddr))
     {
-      Serial.println("Connected to server");
+      Serial.print("Resolved IP: ");
+      Serial.println(serverIPAddr);
+      if (client.connect(serverIPAddr, serverPort))
+      {
+        Serial.println("Connected to server");
+      }
+      else
+      {
+        Serial.println("Connection to server failed");
+      }
     }
     else
     {
-      Serial.println("Connection to server failed");
-      delay(1000);
-      return;
+      Serial.println("DNS resolution failed");
     }
+    delay(1000);
+    return;
   }
 
   if (client.available())

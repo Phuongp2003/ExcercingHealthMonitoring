@@ -11,7 +11,7 @@ const char *ssid = "n2heartb_oxi";
 const char *password = "n2heartb_oxi";
 
 // Server configuration
-const char *serverIP = "oxinheartbeat.phuongy.works"; // Replace with your domain name
+const char *serverIP = "oxinheartbeat.phuongy.works"; 
 const int serverPort = 8888;
 
 MAX30105 particleSensor;
