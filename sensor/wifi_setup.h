@@ -1,7 +1,7 @@
 #ifndef WIFI_SETUP_H
 #define WIFI_SETUP_H
 
-#include "config.h" // import udpPort, serverIP, ssid, password, serverPort
+#include "config.h" // import ssid, password
 
 // Xử lý kết nối wifi
 void setupWiFi()

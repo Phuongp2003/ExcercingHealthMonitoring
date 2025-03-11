@@ -2,18 +2,37 @@
 <html lang="en">
 	<head>
 		<meta charset="UTF-8" />
-		<title>File List</title>
+		<meta
+			name="viewport"
+			content="width=device-width, initial-scale=1.0" />
+		<title>OxiSensor Server</title>
+		<script>
+			function sendCommand(command) {
+				fetch('/' + command)
+					.then((response) => response.text())
+					.then((data) => {
+						console.log(data);	
+						document.getElementById('status').innerText = data;
+					});
+			}
+
+			function updateStatus() {
+				fetch('/status')
+					.then((response) => response.text())
+					.then((data) => {
+						document.getElementById('status').innerText = data;
+					});
+			}
+
+			setInterval(updateStatus, 1000); // Update status every second
+		</script>
 	</head>
 	<body>
-		<h1>Available Files</h1>
-		<ul>
-			{% for file in files %}
-			<li>
-				<a href="{{ url_for('download_file', filename=file) }}"
-					>{{ file }}</a
-				>
-			</li>
-			{% endfor %}
-		</ul>
+		<h1>OxiSensor Server</h1>
+		<p>Server IP: {{ ip }}</p>
+		<p>Server Port: {{ port }}</p>
+		<p>Measurement Status: <span id="status">{{ status }}</span></p>
+		<button onclick="sendCommand('start')">Start Measurement</button>
+		<button onclick="sendCommand('stop')">Stop Measurement</button>
 	</body>
 </html>

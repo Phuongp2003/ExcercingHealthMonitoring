@@ -1,6 +1,0 @@
-numpy
-flask
-scipy
-flask_socketio
-pandas
-gunicorn

@@ -29,3 +29,32 @@ py .\read_and_plot_sensor_data.py
 ```bash
 gunicorn --bind 0.0.0.0:5000 wsgi:app
 ```
+
+### Khởi chạy TCP server
+```bash
+python pyserver/app.py
+```
+
+### Debug version
+```bash
+python pyserver/debug.py
+```
+
+### Bắt đầu đo
+```bash
+curl http://localhost:5000/start
+```
+
+### Dừng đo
+```bash
+curl http://localhost:5000/stop
+```
+
+### Xem và tải các file đã ghi
+Truy cập `http://localhost:5000/files` để xem và tải các file đã ghi.
+
+### Thiết lập IP server cho ESP8266
+Trong file `sensor.ino`, thay thế `your_server_ip` bằng địa chỉ IP của server.
+```cpp
+const char* serverIP = "your_server_ip"; // Replace with your server IP
+```

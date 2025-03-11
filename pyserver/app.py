@@ -1,71 +1,88 @@
 import socket
-from flask import Flask, render_template, send_from_directory, request
-from flask_socketio import SocketIO
-import logging
-import time
-from server import Server
-from signal_processor import SignalProcessor
-from config import SERVER_PORT
 import csv
+import time
 import os
+from flask import Flask, request, render_template, send_from_directory
+import threading
 
-# Initialize Flask app and SocketIO
 app = Flask(__name__)
-socketio = SocketIO(app)
 
-# Configure logging
-logging.basicConfig(level=logging.DEBUG)
+TCP_PORT = 8888
+BUFFER_SIZE = 1024
+measurement_status = "Stopped"
+clients = []
+current_file = None
+writer = None
 
-# Global variable to store ESP connection info
-esp_info = {}
+def get_ip_address():
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        # doesn't even have to be reachable
+        s.connect(('10.254.254.254', 1))
+        ip = s.getsockname()[0]
+    except Exception:
+        ip = '0.0.0.0'
+    finally:
+        s.close()
+    return ip
+
+TCP_IP = get_ip_address()
+
+def start_tcp_server():
+    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server_socket.bind((TCP_IP, TCP_PORT))
+    server_socket.listen(5)
+    print("TCP server listening on port", TCP_PORT)
+    while True:
+        client_socket, addr = server_socket.accept()
+        print("Connection from:", addr)
+        clients.append(client_socket)
+        threading.Thread(target=handle_client_connection, args=(client_socket,)).start()
+
+def handle_client_connection(client_socket):
+    global writer
+    while True:
+        data = client_socket.recv(BUFFER_SIZE).decode()
+        if not data:
+            break
+        print("Received data:", data)
+        for line in data.strip().split('\n'):
+            writer.writerow(line.split(','))
 
 @app.route('/')
 def index():
-    files = os.listdir('data')
-    return render_template('index.html', files=files)
+    return render_template('index.html', ip=TCP_IP, port=TCP_PORT, status=measurement_status)
 
-@app.route('/download/<filename>')
+@app.route('/start')
+def start_measurement():
+    global measurement_status, current_file, writer
+    current_file = open(f"data/data_{int(time.time())}.csv", mode='w', newline='')
+    writer = csv.writer(current_file)
+    writer.writerow(["Timestamp", "IR Value", "Red Value"])
+    for client_socket in clients:
+        client_socket.sendall(b"START\n")
+    measurement_status = "Running"
+    return "Measurement started"
+
+@app.route('/stop')
+def stop_measurement():
+    global measurement_status, current_file
+    for client_socket in clients:
+        client_socket.sendall(b"STOP\n")
+    measurement_status = "Stopped"
+    if current_file:
+        current_file.close()
+    return "Measurement stopped"
+
+@app.route('/files')
+def list_files():
+    files = os.listdir('data')
+    return render_template('files.html', files=files)
+
+@app.route('/files/<filename>')
 def download_file(filename):
     return send_from_directory('data', filename)
 
-@app.route('/data', methods=['POST'])
-def receive_data():
-    data = request.json
-    if not data:
-        return "Invalid data", 400
-    for entry in data:
-        timestamp = time.strftime("%d/%b/%Y %H:%M:%S") + f".{int(time.time() * 1000) % 1000}"
-        ir_value = entry[1]
-        red_value = entry[2]
-        if csv_writer:
-            csv_writer.writerow([timestamp, ir_value, red_value])
-    return "Data received", 200
-
-@app.route('/data/create_csv', methods=['POST'])
-def create_csv():
-    global csv_file, csv_writer
-    timestamp = time.strftime("%Y%m%d_%H%M%S")
-    csv_file = open(f"data/sensor_data_{timestamp}.csv", mode='w', newline='')
-    csv_writer = csv.writer(csv_file)
-    csv_writer.writerow(["time", "irvalue", "redvalue"])
-    return "CSV created", 200
-
-# Global variable for CSV file write stream
-csv_file = None
-csv_writer = None
-
-if __name__ == "__main__":
-    # Initialize server
-    processor = SignalProcessor()
-    server = Server(processor, esp_info, csv_writer)
-
-    socketio.run(app, host='0.0.0.0', port=5000, allow_unsafe_werkzeug=True)
-    try:
-        server.listen_for_data()
-    except Exception as e:
-        logging.error(f"Error: {e}. Reconnecting in 5 seconds...")
-        time.sleep(5)
-        server.listen_for_data()
-    finally:
-        if csv_file:
-            csv_file.close()
+@app.route('/status')
+def get_status():
+    return measurement_status
