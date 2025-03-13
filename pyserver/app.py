@@ -30,7 +30,7 @@ TCP_IP = get_ip_address()
 
 def start_tcp_server():
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server_socket.bind((TCP_IP, TCP_PORT))
+    server_socket.bind(('0.0.0.0', TCP_PORT))
     server_socket.listen(5)
     print("TCP server listening on", TCP_IP, ":", TCP_PORT)
     while True:
@@ -38,7 +38,6 @@ def start_tcp_server():
         print("Connection from:", addr)
         clients.append(client_socket)
         threading.Thread(target=handle_client_connection, args=(client_socket,)).start()
-
 def handle_client_connection(client_socket):
     global writer
     while True:

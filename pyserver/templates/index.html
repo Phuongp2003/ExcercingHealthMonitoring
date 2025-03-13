@@ -6,12 +6,14 @@
 			name="viewport"
 			content="width=device-width, initial-scale=1.0" />
 		<title>OxiSensor Server</title>
-		<script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
 		<script>
-			var socket = io();
-
 			function sendCommand(command) {
-				socket.emit(command + '_measurement');
+				fetch('/' + command)
+					.then((response) => response.text())
+					.then((data) => {
+						console.log(data);
+						document.getElementById('status').innerText = data;
+					});
 			}
 
 			function updateStatus() {
