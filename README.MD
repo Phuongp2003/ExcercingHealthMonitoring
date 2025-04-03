@@ -55,14 +55,14 @@ python server.py
 cd dataC
 gunicorn -w 4 -b 0.0.0.0:8888 wsgi:application
 ```
-
 ### Triển khai trên Render.com
 
 1. Tạo tài khoản trên Render.com
 2. Tạo một Web Service mới, liên kết với repository của bạn
 3. Cấu hình như sau:
-    - Build Command: `pip install -r datac_requirements.txt`
-    - Start Command: `gunicorn -w 4 --chdir dataC wsgi:application`
+    - Root Directory: `dataC`
+    - Build Command: `pip install -r ../datac_requirements.txt`
+    - Start Command: `gunicorn -w 4 wsgi:application`
     - Environment Variables: Thêm `PORT=8888`
 4. Bật chức năng "Private Service" nếu bạn muốn dịch vụ riêng tư
 
