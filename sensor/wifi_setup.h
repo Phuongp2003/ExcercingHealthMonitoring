@@ -42,6 +42,19 @@ void setupWiFi()
     Serial.println("\nWiFi connected successfully!");
     Serial.print("IP Address: ");
     Serial.println(WiFi.localIP());
+
+    // Configure DNS for domains
+    Serial.println("Testing DNS resolution...");
+    IPAddress resolvedIP;
+    if (WiFi.hostByName(tcpServerDomain, resolvedIP))
+    {
+      Serial.print("Resolved TCP domain to: ");
+      Serial.println(resolvedIP);
+    }
+    else
+    {
+      Serial.println("Failed to resolve TCP domain, may use fallback IP");
+    }
   }
 }
 
