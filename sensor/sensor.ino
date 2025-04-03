@@ -1,79 +1,161 @@
-#include <WiFi.h>
-#include <Wire.h>
-#include "MAX30105.h"
 #include "config.h"
-#include "wifi_setup.h"   // Import setupWiFi()
-#include "sensor_setup.h" // Import setupSensor()
+#include "wifi_setup.h"
+#include "sensor_setup.h"
+#include "data_transmission.h"
 
-bool inSend = false;
+//==== CONFIGURATION PARAMETERS ====//
+// Timing and sampling rate
+#define MEASURE_TIME 150000   // Maximum measurement time (150 seconds)
+#define SAMPLE_INTERVAL 25    // Interval between samples (~25ms for 40Hz)
+#define MAX_SAMPLES 6000      // Maximum number of samples (150s * 40Hz = 6000)
+#define CONNECT_TIMEOUT 10000 // TCP server connection timeout (10 seconds)
+
+// Chunk size for data transmission
+#define CHUNK_SIZE 1000 // Samples per chunk
+
+//==== GLOBAL VARIABLES ====//
+bool isCollecting = false;            // Currently collecting data
+bool isSending = false;               // Currently sending data
+unsigned long startTime = 0;          // Collection start time
+int sampleCount = 0;                  // Number of samples collected
+unsigned long lastConnectAttempt = 0; // Last connection attempt time
+bool serverResponding = false;        // Server has responded
+
+// Array to store sensor data
+SensorData measurements[MAX_SAMPLES];
+
+// Last sample time for precise timing
+unsigned long lastSampleTime = 0;
+
+// TCP connection to server
 WiFiClient client;
-char dataBuffer[50]; // Pre-allocated buffer for data
 
-void setup()
-{
-  Serial.begin(115200);
-  Serial.println("Starting setup...");
-  delay(2000); // Add a delay to allow the ESP to stabilize after a reset
-  Serial.println("Setting up WiFi...");
-  setupWiFi();
-  Serial.println("Setting up sensor...");
-  setupSensor();
-  Serial.println("Setup complete.");
-}
-
-void loop()
+/**
+ * Connect to TCP server
+ * 
+ * Process:
+ * 1. Check if already connected
+ * 2. If not and timeout passed, attempt reconnection
+ * 3. Send HELLO message when connected successfully
+ */
+void connectToServer()
 {
   if (!client.connected())
   {
-    Serial.println("Connecting to server...");
-    Serial.print("Resolving domain: ");
-    Serial.println(serverIP);
-    IPAddress serverIPAddr;
-    if (WiFi.hostByName(serverIP, serverIPAddr))
+    // Wait for timeout before trying to reconnect
+    if (millis() - lastConnectAttempt < CONNECT_TIMEOUT)
     {
-      Serial.print("Resolved IP: ");
-      Serial.println(serverIPAddr);
-      if (client.connect(serverIPAddr, serverPort))
-      {
-        Serial.println("Connected to server");
-      }
-      else
-      {
-        Serial.println("Connection to server failed");
-      }
+      return;
+    }
+    lastConnectAttempt = millis();
+
+    Serial.println("Connecting to server...");
+
+    if (client.connect(serverIP, serverPort))
+    {
+      Serial.println("Connected to server");
+      client.println("HELLO");
+      serverResponding = true;
     }
     else
     {
-      Serial.println("DNS resolution failed");
+      Serial.println("Connection failed");
     }
-    delay(1000);
+  }
+}
+
+/**
+ * Setup function - runs once at startup
+ */
+void setup()
+{
+  Serial.begin(115200);
+  Serial.println("Starting sensor...");
+
+  // Setup WiFi
+  setupWiFi();
+
+  // Setup sensor
+  setupSensor();
+
+  Serial.println("Setup complete");
+}
+
+/**
+ * Main loop - runs continuously
+ */
+void loop()
+{
+  //==== 1. SERVER CONNECTION MANAGEMENT ====//
+  if (!client.connected())
+  {
+    if (isCollecting)
+    {
+      Serial.println("Connection lost while collecting data");
+      isCollecting = false;
+    }
+    connectToServer();
     return;
   }
 
-  if (client.available())
+  //==== 2. PROCESS SERVER COMMANDS ====//
+  while (client.available())
   {
     String command = client.readStringUntil('\n');
     command.trim();
-    if (command == "START")
+    Serial.println("Received: " + command);
+
+    if (command.equals("START") && !isCollecting && !isSending)
     {
-      inSend = true;
-      Serial.println("Measurement started");
+      Serial.println("Starting data collection");
+      isCollecting = true;
+      startTime = millis();
+      lastSampleTime = startTime;
+      sampleCount = 0;
     }
-    else if (command == "STOP")
+    else if (command.equals("STOP") && isCollecting)
     {
-      inSend = false;
-      Serial.println("Measurement stopped");
+      Serial.println("Stopping. Collected: " + String(sampleCount) + " samples");
+      isCollecting = false;
+      isSending = true;
     }
   }
 
-  if (inSend)
+  //==== 3. DATA COLLECTION ====//
+  if (isCollecting)
   {
-    // Collect and send data
-    uint32_t irValue = particleSensor.getIR();
-    uint32_t redValue = particleSensor.getRed();
-    snprintf(dataBuffer, sizeof(dataBuffer), "%lu,%lu,%lu\n", millis(), irValue, redValue);
-    client.print(dataBuffer);
-    Serial.println(dataBuffer);
-    delay(40); // Adjust delay as needed
+    unsigned long currentTime = millis();
+
+    // Check if measurement time completed
+    if (currentTime - startTime >= MEASURE_TIME)
+    {
+      Serial.println("Measurement time completed. Samples: " + String(sampleCount));
+      isCollecting = false;
+      isSending = true;
+    }
+    // Collect samples at regular intervals
+    else if ((currentTime - lastSampleTime) >= SAMPLE_INTERVAL && sampleCount < MAX_SAMPLES)
+    {
+      // Read sensor values
+      measurements[sampleCount].timestamp = currentTime - startTime;
+      measurements[sampleCount].ir = particleSensor.getIR();
+      measurements[sampleCount].red = particleSensor.getRed();
+      sampleCount++;
+      lastSampleTime = currentTime;
+
+      // Minimal logging - only every 1000 samples (~25 seconds at 40Hz)
+      if (sampleCount % 1000 == 0)
+      {
+        float samplingRate = sampleCount * 1000.0 / (currentTime - startTime);
+        Serial.printf("%d samples (%.1f Hz)\n", sampleCount, samplingRate);
+      }
+    }
+  }
+
+  //==== 4. DATA TRANSMISSION ====//
+  if (isSending)
+  {
+    sendCollectedData(measurements, sampleCount, CHUNK_SIZE);
+    isSending = false;
   }
 }

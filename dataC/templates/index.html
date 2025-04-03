@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta
+			name="viewport"
+			content="width=device-width, initial-scale=1.0" />
+		<title>Oxi Sensor Dashboard</title>
+		<style>
+			body {
+				font-family: Arial, sans-serif;
+				margin: 0;
+				padding: 20px;
+			}
+			.container {
+				max-width: 800px;
+				margin: 0 auto;
+			}
+			.card {
+				border: 1px solid #ddd;
+				border-radius: 5px;
+				padding: 20px;
+				margin-bottom: 20px;
+				background-color: #f9f9f9;
+			}
+			.button {
+				background-color: #4caf50;
+				border: none;
+				color: white;
+				padding: 10px 20px;
+				text-align: center;
+				text-decoration: none;
+				display: inline-block;
+				font-size: 16px;
+				margin: 4px 2px;
+				cursor: pointer;
+				border-radius: 4px;
+			}
+			.button.stop {
+				background-color: #f44336;
+			}
+			.button.clear {
+				background-color: #ff9800;
+			}
+			.button.analysis {
+				background-color: #2196f3;
+			}
+			.button.files {
+				background-color: #9c27b0;
+			}
+			.button:disabled {
+				background-color: #cccccc;
+				cursor: not-allowed;
+			}
+			.status {
+				padding: 10px;
+				border-radius: 4px;
+				margin-bottom: 10px;
+			}
+			.connected {
+				background-color: #dff0d8;
+				color: #3c763d;
+			}
+			.disconnected {
+				background-color: #f2dede;
+				color: #a94442;
+			}
+			.timer {
+				font-size: 18px;
+				font-weight: bold;
+				margin-bottom: 8px;
+			}
+			.progress-bar-container {
+				width: 100%;
+				background-color: #f0f0f0;
+				border-radius: 4px;
+				height: 20px;
+				overflow: hidden;
+			}
+			.progress-bar {
+				height: 100%;
+				background-color: #4caf50;
+				width: 0%;
+				transition: width 1s linear;
+				}
+			.last-update-time {
+				font-size: 12px;
+				color: #666;
+				margin-top: 8px;
+				font-style: italic;
+			}
+			.highlight {
+				animation: highlight-animation 2s ease-in-out;
+			}
+			@keyframes highlight-animation {
+				0% { background-color: #f9f9f9; }
+				50% { background-color: #e6ffe6; }
+				100% { background-color: #f9f9f9; }
+			}
+			.data-info {
+				margin-bottom: 5px;
+			}
+		</style>
+	</head>
+	<body>
+		<div class="container">
+			<h1>Oxi Sensor Dashboard</h1>
+
+			<div class="card">
+				<h2>Connection Status</h2>
+				<div
+					id="connection-status"
+					class="status disconnected">
+					Checking connection...
+				</div>
+				<button
+					id="clear-connection"
+					class="button clear">
+					Clear Connection
+				</button>
+			</div>
+
+			<div class="card">
+				<h2>Data Collection</h2>
+				<div
+					id="timer-container"
+					style="display: none; margin-bottom: 15px">
+					<div class="timer">
+						Elapsed time: <span id="timer-display">00:00</span> /
+						02:30
+					</div>
+					<div class="progress-bar-container">
+						<div
+							id="timer-progress"
+							class="progress-bar"></div>
+					</div>
+				</div>
+				<button
+					id="start-button"
+					class="button"
+					disabled>
+					Start Collection
+				</button>
+				<button
+					id="stop-button"
+					class="button stop"
+					disabled>
+					Stop Collection
+				</button>
+			</div>
+			<a
+				href="/files"
+				class="button"
+				>View All Files</a
+			>
+
+			<div class="card">
+				<h2>Last Collection</h2>
+				<div id="last-data-container">
+					<div id="last-data">No data collected yet</div>
+					<div id="last-data-time" class="last-update-time"></div>
+				</div>
+				<div
+					id="analysis-buttons"
+					style="margin-top: 15px; display: none">
+					<a
+						href="/latest-analysis"
+						class="button analysis"
+						>View Analysis</a
+					>
+					<a
+						id="download-latest"
+						href="#"
+						class="button files"
+						>Download CSV</a
+					>
+				</div>
+			</div>
+		</div>
+
+		<script>
+			// Trạng thái ban đầu
+			let isConnected = false;
+			let isCollecting = {{ 'true' if is_collecting else 'false' }};
+			let timerInterval = null;
+			let startTimestamp = 0;
+			const COLLECTION_DURATION_SEC = 150; // 150 seconds (2:30)
+			let lastDataInfo = null;
+
+			// DOM elements
+			const connectionStatus = document.getElementById('connection-status');
+			const startButton = document.getElementById('start-button');
+			const stopButton = document.getElementById('stop-button');
+			const clearConnectionButton = document.getElementById('clear-connection');
+			const lastDataDiv = document.getElementById('last-data');
+			const lastDataContainer = document.getElementById('last-data-container');
+			const lastDataTime = document.getElementById('last-data-time');
+			const analysisButtons = document.getElementById('analysis-buttons');
+			const downloadLatestButton = document.getElementById('download-latest');
+			const timerContainer = document.getElementById('timer-container');
+			const timerDisplay = document.getElementById('timer-display');
+			const timerProgress = document.getElementById('timer-progress');
+
+			// Timer functions
+			function startTimer() {
+				timerContainer.style.display = 'block';
+				startTimestamp = Date.now();
+				updateTimer();
+				timerInterval = setInterval(updateTimer, 1000);
+			}
+
+			function stopTimer() {
+				clearInterval(timerInterval);
+				timerInterval = null;
+			}
+
+			function resetTimer() {
+				timerDisplay.textContent = '00:00';
+				timerProgress.style.width = '0%';
+				timerContainer.style.display = 'none';
+			}
+
+			function updateTimer() {
+				const elapsedMs = Date.now() - startTimestamp;
+				const elapsedSec = Math.floor(elapsedMs / 1000);
+
+				if (elapsedSec >= COLLECTION_DURATION_SEC) {
+					stopTimer();
+					return;
+				}
+
+				// Format time as MM:SS
+				const minutes = Math.floor(elapsedSec / 60);
+				const seconds = elapsedSec % 60;
+				timerDisplay.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+
+				// Update progress bar
+				const progressPercent = (elapsedSec / COLLECTION_DURATION_SEC) * 100;
+				timerProgress.style.width = `${progressPercent}%`;
+			}
+
+			// Functions
+			function updateUI() {
+				// Update connection status
+				connectionStatus.textContent = isConnected ? 'Connected' : 'Disconnected';
+				connectionStatus.className = 'status ' + (isConnected ? 'connected' : 'disconnected');
+
+				// Update buttons
+				startButton.disabled = !isConnected || isCollecting;
+				stopButton.disabled = !isConnected || !isCollecting;
+
+				// Update timer visibility
+				if (isCollecting) {
+					timerContainer.style.display = 'block';
+				} else if (!timerInterval) {
+					timerContainer.style.display = 'none';
+				}
+			}
+
+			function updateLastDataDisplay(data) {
+				if (!data) return;
+				
+				// Check if this is new data
+				const isNewData = !lastDataInfo || 
+								lastDataInfo.filename !== data.filename || 
+								lastDataInfo.samples !== data.samples;
+				
+				if (isNewData) {
+					// Store new data info
+					lastDataInfo = data;
+					
+					// Highlight the container to show new data arrived
+					lastDataContainer.classList.add('highlight');
+					setTimeout(() => {
+						lastDataContainer.classList.remove('highlight');
+					}, 2000);
+					
+					// Format the display with more details
+					let html = '';
+					
+					html += `<div class="data-info"><strong>Filename:</strong> ${data.filename}</div>`;
+					html += `<div class="data-info"><strong>Samples:</strong> ${data.samples.toLocaleString()}</div>`;
+					html += `<div class="data-info"><strong>Timestamp:</strong> ${data.timestamp}</div>`;
+					
+					// Add chunked information if available
+					if (data.chunked) {
+						html += `<div class="data-info"><strong>Transfer:</strong> Chunked (${data.chunks} chunks)</div>`;
+					}
+					
+					lastDataDiv.innerHTML = html;
+					
+					// Update the "last updated" time
+					const now = new Date();
+					lastDataTime.textContent = `Updated: ${now.toLocaleTimeString()}`;
+					
+					// Show analysis buttons
+					analysisButtons.style.display = 'block';
+					
+					// Update download link
+					downloadLatestButton.href = `/files/${data.filename}`;
+				}
+			}
+
+			// Event listeners
+			startButton.addEventListener('click', async () => {
+				try {
+					const response = await fetch('/start', { method: 'POST' });
+					const data = await response.json();
+					if (data.status === 'success') {
+						isCollecting = true;
+						startTimer();
+						updateUI();
+					} else {
+						alert('Failed to start: ' + data.message);
+					}
+				} catch (error) {
+					console.error('Error:', error);
+					alert('Error starting collection');
+				}
+			});
+
+			stopButton.addEventListener('click', async () => {
+				try {
+					const response = await fetch('/stop', { method: 'POST' });
+					const data = await response.json();
+					if (data.status === 'success') {
+						isCollecting = false;
+						stopTimer();
+						updateUI();
+					} else {
+						alert('Failed to stop: ' + data.message);
+					}
+				} catch (error) {
+					console.error('Error:', error);
+					alert('Error stopping collection');
+				}
+			});
+
+			clearConnectionButton.addEventListener('click', async () => {
+				try {
+					const response = await fetch('/clear-connection', { method: 'POST' });
+					const data = await response.json();
+					if (data.status === 'success') {
+						alert('Connection cleared. Waiting for new sensor connection.');
+						isConnected = false;
+						isCollecting = false;
+						stopTimer();
+						resetTimer();
+						updateUI();
+					} else {
+						alert('Failed to clear connection: ' + data.message);
+					}
+				} catch (error) {
+					console.error('Error:', error);
+					alert('Error clearing connection');
+				}
+			});
+
+			// Check status regularly
+			async function checkStatus() {
+				try {
+					const response = await fetch('/status');
+					const data = await response.json();
+
+					const wasCollecting = isCollecting;
+					isConnected = data.connected;
+					isCollecting = data.collecting;
+
+					// If collection state changed from true to false
+					if (wasCollecting && !isCollecting) {
+						stopTimer();
+					}
+
+					// If collection state changed from false to true
+					if (!wasCollecting && isCollecting && !timerInterval) {
+						startTimer();
+					}
+
+					// Update last data information
+					if (data.last_data) {
+						updateLastDataDisplay(data.last_data);
+					}
+
+					updateUI();
+				} catch (error) {
+					console.error('Error checking status:', error);
+				}
+			}
+
+			// Initial update
+			updateUI();
+
+			// Check status every 2 seconds
+			setInterval(checkStatus, 2000);
+
+			// Check once on load
+			checkStatus();
+		</script>
+	</body>
+</html>

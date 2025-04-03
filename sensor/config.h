@@ -6,14 +6,27 @@
 #include <Wire.h>
 #include "MAX30105.h"
 
-// WiFi credentials
-const char *ssid = "n2heartb_oxi";
-const char *password = "n2heartb_oxi";
+//==== WIFI CONFIGURATION ====//
+// WiFi login credentials
+const char *ssid = "n2heartb_oxi";     // WiFi network name
+const char *password = "n2heartb_oxi"; // WiFi password
 
-// Server configuration
-const char *serverIP = "192.168.1.27"; 
-const int serverPort = 8888;
+//==== SERVER CONFIGURATION ====//
+// Server information
+const char *serverIP = "192.168.137.1"; // IP address of the data receiving server
+const int serverPort = 8889;            // TCP port for server communication
+const int httpPort = 8888;              // HTTP port for data transmission
 
+// MAX30105 sensor object
 MAX30105 particleSensor;
+
+//==== DATA STRUCTURE ====//
+// Memory-optimized sensor data structure
+struct __attribute__((packed)) SensorData
+{
+    uint32_t timestamp; // Relative time (ms from start)
+    uint32_t ir;        // IR sensor value
+    uint32_t red;       // Red light sensor value
+};
 
 #endif

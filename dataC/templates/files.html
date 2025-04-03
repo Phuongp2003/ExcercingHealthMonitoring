@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta
+			name="viewport"
+			content="width=device-width, initial-scale=1.0" />
+		<title>Recorded Files</title>
+		<style>
+			body {
+				font-family: Arial, sans-serif;
+				margin: 0;
+				padding: 20px;
+			}
+			.container {
+				max-width: 800px;
+				margin: 0 auto;
+			}
+			.file-list {
+				list-style-type: none;
+				padding: 0;
+			}
+			.file-item {
+				padding: 10px;
+				border-bottom: 1px solid #ddd;
+				display: flex;
+				justify-content: space-between;
+				align-items: center;
+			}
+			.file-item:hover {
+				background-color: #f9f9f9;
+			}
+			.button {
+				background-color: #4caf50;
+				border: none;
+				color: white;
+				padding: 8px 16px;
+				text-align: center;
+				text-decoration: none;
+				display: inline-block;
+				font-size: 14px;
+				margin: 4px 2px;
+				cursor: pointer;
+				border-radius: 4px;
+			}
+			.button.download {
+				background-color: #2196f3;
+			}
+			.button.analysis {
+				background-color: #9c27b0;
+			}
+			.button.home {
+				background-color: #607d8b;
+				margin-bottom: 20px;
+			}
+		</style>
+	</head>
+	<body>
+		<div class="container">
+			<h1>Recorded Files</h1>
+			<a
+				href="/"
+				class="button home"
+				>Back to Dashboard</a
+			>
+
+			{% if files %}
+			<ul class="file-list">
+				{% for file in files %}
+				<li class="file-item">
+					<span>{{ file }}</span>
+					<div>
+						<a
+							href="/analysis/{{ file }}"
+							class="button analysis"
+							>View Analysis</a
+						>
+						<a
+							href="/files/{{ file }}"
+							class="button download"
+							>Download</a
+						>
+					</div>
+				</li>
+				{% endfor %}
+			</ul>
+			{% else %}
+			<p>No files found.</p>
+			{% endif %}
+		</div>
+	</body>
+</html>

@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta
+			name="viewport"
+			content="width=device-width, initial-scale=1.0" />
+		<title>Sampling Analysis - {{ analysis.filename }}</title>
+		<style>
+			body {
+				font-family: Arial, sans-serif;
+				margin: 0;
+				padding: 20px;
+			}
+			.container {
+				max-width: 1200px;
+				margin: 0 auto;
+			}
+			.card {
+				border: 1px solid #ddd;
+				border-radius: 5px;
+				padding: 20px;
+				margin-bottom: 20px;
+				background-color: #f9f9f9;
+			}
+			.button {
+				background-color: #4caf50;
+				border: none;
+				color: white;
+				padding: 10px 20px;
+				text-align: center;
+				text-decoration: none;
+				display: inline-block;
+				font-size: 16px;
+				margin: 4px 2px;
+				cursor: pointer;
+				border-radius: 4px;
+			}
+			.plot-container {
+				text-align: center;
+				margin-bottom: 30px;
+			}
+			.plot-image {
+				max-width: 100%;
+				height: auto;
+				box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+			}
+			table {
+				width: 100%;
+				border-collapse: collapse;
+				margin: 20px 0;
+			}
+			th,
+			td {
+				border: 1px solid #ddd;
+				padding: 8px;
+				text-align: left;
+			}
+			th {
+				background-color: #f2f2f2;
+			}
+			tr:nth-child(even) {
+				background-color: #f9f9f9;
+			}
+			.assessment {
+				padding: 10px;
+				border-radius: 4px;
+				margin: 10px 0;
+				font-weight: bold;
+			}
+			.excellent {
+				background-color: #dff0d8;
+				color: #3c763d;
+			}
+			.good {
+				background-color: #d9edf7;
+				color: #31708f;
+			}
+			.acceptable {
+				background-color: #fcf8e3;
+				color: #8a6d3b;
+			}
+			.poor {
+				background-color: #f2dede;
+				color: #a94442;
+			}
+			.nav-buttons {
+				display: flex;
+				justify-content: space-between;
+				margin-bottom: 20px;
+			}
+		</style>
+	</head>
+	<body>
+		<div class="container">
+			<div class="nav-buttons">
+				<a
+					href="/"
+					class="button"
+					>Back to Dashboard</a
+				>
+				<a
+					href="/files"
+					class="button"
+					>View All Files</a
+				>
+			</div>
+
+			<h1>Sampling Analysis: {{ analysis.filename }}</h1>
+
+			<div class="card">
+				<h2>Overall Statistics</h2>
+				<table>
+					<tr>
+						<th>Metric</th>
+						<th>Value</th>
+						<th>Target</th>
+					</tr>
+					<tr>
+						<td>Mean Sampling Frequency</td>
+						<td>
+							{{ analysis.results.mean_frequency|round(2) }} Hz
+						</td>
+						<td>40 Hz</td>
+					</tr>
+					<tr>
+						<td>Mean Sampling Interval</td>
+						<td>
+							{{ (1000 / analysis.results.mean_frequency)|round(2)
+							}} ms
+						</td>
+						<td>25 ms</td>
+					</tr>
+					<tr>
+						<td>Stability (CV)</td>
+						<td>{{ analysis.results.cv_percent|round(2) }}%</td>
+						<td>&lt; 5% (Excellent)</td>
+					</tr>
+					<tr>
+						<td>Frequency Range</td>
+						<td>
+							{{ analysis.results.min_frequency|round(2) }} - {{
+							analysis.results.max_frequency|round(2) }} Hz
+						</td>
+						<td>-</td>
+					</tr>
+					<tr>
+						<td>Sample Capture Ratio</td>
+						<td>{{ analysis.results.sample_ratio|round(2) }}</td>
+						<td>~1.0 (ideal)</td>
+					</tr>
+					<tr>
+						<td>Outliers</td>
+						<td>
+							{{ analysis.results.outliers_count }} ({{
+							analysis.results.outliers_percent|round(2) }}%)
+						</td>
+						<td>&lt; 1%</td>
+					</tr>
+				</table>
+
+				{% if analysis.results.cv_percent < 5 %}
+				<div class="assessment excellent">
+					Stability Assessment: EXCELLENT - Very stable sampling rate
+				</div>
+				{% elif analysis.results.cv_percent < 10 %}
+				<div class="assessment good">
+					Stability Assessment: GOOD - Stable sampling rate with minor
+					variations
+				</div>
+				{% elif analysis.results.cv_percent < 15 %}
+				<div class="assessment acceptable">
+					Stability Assessment: ACCEPTABLE - Sampling rate shows some
+					instability
+				</div>
+				{% else %}
+				<div class="assessment poor">
+					Stability Assessment: POOR - Sampling rate is unstable
+				</div>
+				{% endif %}
+			</div>
+
+			<div class="card">
+				<h2>Sampling Frequency Over Time</h2>
+				<div class="plot-container">
+					<img
+						class="plot-image"
+						src="data:image/png;base64,{{ analysis.plots.frequency_time }}"
+						alt="Sampling Frequency Over Time" />
+				</div>
+			</div>
+
+			<div class="card">
+				<h2>Frequency Distribution</h2>
+				<div class="plot-container">
+					<img
+						class="plot-image"
+						src="data:image/png;base64,{{ analysis.plots.frequency_hist }}"
+						alt="Frequency Distribution" />
+				</div>
+			</div>
+
+			<div class="card">
+				<h2>Sampling Interval Over Time</h2>
+				<div class="plot-container">
+					<img
+						class="plot-image"
+						src="data:image/png;base64,{{ analysis.plots.interval_time }}"
+						alt="Sampling Interval Over Time" />
+				</div>
+			</div>
+
+			<div class="card">
+				<h2>Segment Analysis</h2>
+				<p>
+					Analysis of sampling rate stability across different
+					segments of the recording:
+				</p>
+
+				<table>
+					<tr>
+						<th>Segment</th>
+						<th>Time Range (s)</th>
+						<th>Mean Frequency (Hz)</th>
+						<th>Stability (CV%)</th>
+					</tr>
+					{% for segment in analysis.segments %}
+					<tr>
+						<td>{{ segment.segment }}</td>
+						<td>
+							{{ segment.start_time|round(1) }} - {{
+							segment.end_time|round(1) }}
+						</td>
+						<td>{{ segment.mean_freq|round(2) }}</td>
+						<td>{{ segment.cv_percent|round(2) }}%</td>
+					</tr>
+					{% endfor %}
+				</table>
+			</div>
+		</div>
+	</body>
+</html>
