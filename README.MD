@@ -55,6 +55,7 @@ python server.py
 cd dataC
 gunicorn -w 4 -b 0.0.0.0:8888 wsgi:application
 ```
+
 ### Triển khai trên Render.com
 
 1. Tạo tài khoản trên Render.com
@@ -63,8 +64,22 @@ gunicorn -w 4 -b 0.0.0.0:8888 wsgi:application
     - Root Directory: `dataC`
     - Build Command: `pip install -r ../datac_requirements.txt`
     - Start Command: `gunicorn -w 4 wsgi:application`
-    - Environment Variables: Thêm `PORT=8888`
+    - Environment Variables:
+        - `PORT=10000` (hoặc port được Render cung cấp)
+        - `TCP_PORT=10001` (cổng khác cho TCP server)
 4. Bật chức năng "Private Service" nếu bạn muốn dịch vụ riêng tư
+
+#### Lưu ý quan trọng về cổng khi triển khai
+
+-   Render.com thường chỉ định cổng 10000 cho ứng dụng web, không phải cổng 8888
+-   TCP_PORT (8889) cần được đặt thành cổng khác được Render cho phép (10001)
+-   ESP8266 cần được cập nhật để kết nối với domain của Render và cổng TCP mới (10001)
+
+```cpp
+// Cập nhật trong file ESP8266
+const char* serverIP = "your-app.onrender.com"; // Tên miền Render
+const int serverPort = 10001; // Cổng TCP mới
+```
 
 ### Triển khai với Systemd (Linux)
 

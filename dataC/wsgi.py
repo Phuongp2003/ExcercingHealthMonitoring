@@ -22,4 +22,5 @@ if current_dir not in sys.path:
 
 if __name__ == "__main__":
     # When run directly, this will start the Flask development server
-    application.run(host='0.0.0.0', port=8888, debug=True)
+    port = int(os.environ.get("PORT", 8888))
+    application.run(host='0.0.0.0', port=port)

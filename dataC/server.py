@@ -17,8 +17,9 @@ matplotlib.use('Agg')  # Use non-interactive backend
 
 # Configuration
 TCP_IP = '0.0.0.0'  # Listen on all interfaces
-TCP_PORT = 8889
-HTTP_PORT = 8888
+# Get port values from environment variables if available
+TCP_PORT = int(os.environ.get("TCP_PORT", 8889))
+HTTP_PORT = int(os.environ.get("PORT", 8888))
 DATA_DIR = 'data'
 RAW_DIR = os.path.join(DATA_DIR, 'raw')
 CSV_DIR = os.path.join(DATA_DIR, 'csv')
