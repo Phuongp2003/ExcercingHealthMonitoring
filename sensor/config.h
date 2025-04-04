@@ -13,13 +13,9 @@ const char *password = "n2heartb_oxi"; // WiFi password
 
 //==== SERVER CONFIGURATION ====//
 // Server information
-const char *tcpServerDomain = "tcp.phuongy.works";            // Domain for TCP
-const char *httpServerDomain = "oxinheartbeat.phuongy.works"; // Domain for HTTP
-const int serverPort = 8889;                                  // TCP port for server communication
-const int httpPort = 8888;                                    // HTTP port for data transmission
-
-// Legacy direct IP config (kept for fallback)
 const char *serverIP = "192.168.137.1"; // IP address of the data receiving server
+const int serverPort = 8889;            // TCP port for server communication
+const int httpPort = 8888;              // HTTP port for data transmission
 
 // MAX30105 sensor object
 MAX30105 particleSensor;

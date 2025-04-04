@@ -32,7 +32,7 @@ WiFiClient client;
 
 /**
  * Connect to TCP server
- *
+ * 
  * Process:
  * 1. Check if already connected
  * 2. If not and timeout passed, attempt reconnection
@@ -49,29 +49,17 @@ void connectToServer()
     }
     lastConnectAttempt = millis();
 
-    Serial.println("Connecting to server via Cloudflare Tunnel...");
+    Serial.println("Connecting to server...");
 
-    // Try to connect using the domain first
-    if (client.connect(tcpServerDomain, serverPort))
+    if (client.connect(serverIP, serverPort))
     {
-      Serial.println("Connected to server via domain");
+      Serial.println("Connected to server");
       client.println("HELLO");
       serverResponding = true;
     }
     else
     {
-      Serial.println("Connection failed, trying direct IP fallback...");
-      // Fallback to direct IP if domain connection fails
-      if (client.connect(serverIP, serverPort))
-      {
-        Serial.println("Connected to server via direct IP");
-        client.println("HELLO");
-        serverResponding = true;
-      }
-      else
-      {
-        Serial.println("All connection attempts failed");
-      }
+      Serial.println("Connection failed");
     }
   }
 }
