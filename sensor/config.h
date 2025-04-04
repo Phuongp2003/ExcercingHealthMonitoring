@@ -1,21 +1,23 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
+// Include required libraries
 #include <WiFi.h>
 #include <WiFiUdp.h>
 #include <Wire.h>
 #include "MAX30105.h"
+#include <ArduinoJson.h>
 
 //==== WIFI CONFIGURATION ====//
 // WiFi login credentials
-const char *ssid = "n2heartb_oxi";     // WiFi network name
-const char *password = "n2heartb_oxi"; // WiFi password
+const char *ssid = "M73";          // WiFi network name
+const char *password = "00000000"; // WiFi password
 
 //==== SERVER CONFIGURATION ====//
 // Server information
-const char *serverIP = "192.168.137.1"; // IP address of the data receiving server
-const int serverPort = 8889;            // TCP port for server communication
-const int httpPort = 8888;              // HTTP port for data transmission
+const char *serverIP = "192.168.38.118"; // IP address of the data receiving server
+const int serverPort = 8889;             // TCP port for server communication
+const int httpPort = 8888;               // HTTP port for data transmission
 
 // MAX30105 sensor object
 MAX30105 particleSensor;

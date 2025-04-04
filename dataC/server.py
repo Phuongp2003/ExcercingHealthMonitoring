@@ -12,6 +12,7 @@ import io
 import base64
 import matplotlib
 import pandas as pd
+import netifaces
 
 matplotlib.use('Agg')  # Use non-interactive backend
 
@@ -514,6 +515,39 @@ def process_complete_data(raw_data):
 # Routes
 
 
+@app.route('/api/iplist')
+def get_ip_list():
+    """Return a list of server IP addresses for sensor auto-discovery"""
+    try:
+        # Get network interfaces
+        ips = []
+
+        # Get all network interfaces
+        interfaces = netifaces.interfaces()
+        for interface in interfaces:
+            # Skip loopback interface
+            if interface.startswith('lo'):
+                continue
+
+            # Get addresses for this interface
+            addresses = netifaces.ifaddresses(interface)
+            # Look for IPv4 addresses
+            if netifaces.AF_INET in addresses:
+                for addr_info in addresses[netifaces.AF_INET]:
+                    ip = addr_info['addr']
+                    # Skip localhost and link-local addresses
+                    if not ip.startswith('127.') and not ip.startswith('169.254.'):
+                        ips.append(ip)
+
+        print(f"IP list requested. Returning: {ips}")
+        return jsonify({"ips": ips})
+    except Exception as e:
+        import traceback
+        print(f"Error getting IP list: {e}")
+        traceback.print_exc()
+        return jsonify({"error": str(e), "ips": []}), 500
+
+
 @app.route('/')
 def index():
     """Render the main dashboard"""
@@ -646,6 +680,37 @@ def get_status():
             "collecting": is_collecting,
             "last_data": last_data
         })
+
+
+@app.route('/plot/<filename>')
+def plot_file(filename):
+    """Generate and display plots for a specific CSV file using matplotlib's interactive mode"""
+    try:
+        # Path to the CSV file
+        file_path = os.path.join(CSV_DIR, filename)
+
+        # Check if file exists
+        if not os.path.exists(file_path):
+            return f"Error: File {filename} not found", 404
+
+        # Launch the plotter in a separate process to avoid blocking the server
+        import subprocess
+        import sys
+
+        # Get the absolute path to plotter.py
+        plotter_path = os.path.join(os.path.dirname(
+            os.path.abspath(__file__)), 'plotter.py')
+
+        # Launch the plotter script with the file as an argument
+        # The --raw and --filtered flags will show both raw and filtered data plots
+        subprocess.Popen([sys.executable, plotter_path,
+                         file_path, '--raw', '--filtered'])
+
+        return f"Plots for {filename} are opening in separate windows. Check your desktop.", 200
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return f"Error displaying plots: {str(e)}", 500
 
 
 if __name__ == "__main__":

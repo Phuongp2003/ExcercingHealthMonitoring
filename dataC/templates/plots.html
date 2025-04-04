@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta
+			name="viewport"
+			content="width=device-width, initial-scale=1.0" />
+		<title>Data Plots - {{ filename }}</title>
+		<style>
+			body {
+				font-family: Arial, sans-serif;
+				margin: 0;
+				padding: 20px;
+			}
+			.container {
+				max-width: 1200px;
+				margin: 0 auto;
+			}
+			.button {
+				background-color: #4caf50;
+				border: none;
+				color: white;
+				padding: 8px 16px;
+				text-align: center;
+				text-decoration: none;
+				display: inline-block;
+				font-size: 14px;
+				margin: 4px 2px;
+				cursor: pointer;
+				border-radius: 4px;
+			}
+			.button.home {
+				background-color: #607d8b;
+				margin-bottom: 20px;
+			}
+			.plot-container {
+				margin-bottom: 30px;
+				text-align: center;
+			}
+			.plot-image {
+				max-width: 100%;
+				height: auto;
+				box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+			}
+			h2 {
+				color: #333;
+				border-bottom: 1px solid #ddd;
+				padding-bottom: 10px;
+			}
+		</style>
+	</head>
+	<body>
+		<div class="container">
+			<h1>Data Plots for {{ filename }}</h1>
+
+			<div class="nav-buttons">
+				<a
+					href="/"
+					class="button home"
+					>Back to Dashboard</a
+				>
+				<a
+					href="/files"
+					class="button home"
+					>Back to Files</a
+				>
+			</div>
+
+			{% if plots %} {% for plot in plots %}
+			<div class="plot-container">
+				<h2>{{ plot.name }}</h2>
+				<img
+					class="plot-image"
+					src="data:image/png;base64,{{ plot.data }}"
+					alt="{{ plot.name }}" />
+			</div>
+			{% endfor %} {% else %}
+			<p>No plots generated.</p>
+			{% endif %}
+		</div>
+	</body>
+</html>

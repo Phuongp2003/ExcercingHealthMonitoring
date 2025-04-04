@@ -49,12 +49,12 @@ void setupSensor()
    * adcRange: ADC range (2048, 4096, 8192, 16384)
    *   - Smaller range converts faster but may saturate in bright light
    */
-  byte ledBrightness = 0x1E; // Higher LED brightness for better signal
-  byte sampleAverage = 2;    // Average 2 samples to balance speed and quality
-  byte ledMode = 2;          // Red + IR mode for SpO2
-  int sampleRate = 400;      // 400Hz / 2 (sampleAverage) = 200Hz actual
-  int pulseWidth = 69;       // Short pulse (69μs) for fast reading
-  int adcRange = 2048;       // Lower measurement range for faster conversion
+  byte ledBrightness = 0x1F;
+  byte sampleAverage = 2;
+  byte ledMode = 2;
+  int sampleRate = 320;
+  int pulseWidth = 411;
+  int adcRange = 4096;
 
   particleSensor.setup(ledBrightness, sampleAverage, ledMode, sampleRate, pulseWidth, adcRange);
 
