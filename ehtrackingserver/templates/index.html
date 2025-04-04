@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta
+			name="viewport"
+			content="width=device-width, initial-scale=1.0" />
+		<title>Oxi Sensor Dashboard</title>
+		<style>
+			body {
+				font-family: Arial, sans-serif;
+				margin: 0;
+				padding: 20px;
+			}
+			.container {
+				max-width: 800px;
+				margin: 0 auto;
+			}
+			.card {
+				border: 1px solid #ddd;
+				border-radius: 5px;
+				padding: 20px;
+				margin-bottom: 20px;
+				background-color: #f9f9f9;
+			}
+			.button {
+				background-color: #4caf50;
+				border: none;
+				color: white;
+				padding: 10px 20px;
+				text-align: center;
+				text-decoration: none;
+				display: inline-block;
+				font-size: 16px;
+				margin: 4px 2px;
+				cursor: pointer;
+				border-radius: 4px;
+			}
+			.button.stop {
+				background-color: #f44336;
+			}
+			.button.clear {
+				background-color: #ff9800;
+			}
+			.button.check {
+				background-color: #2196f3;
+			}
+			.button.files {
+				background-color: #9c27b0;
+			}
+			.button:disabled {
+				background-color: #cccccc;
+				cursor: not-allowed;
+			}
+			.status {
+				padding: 10px;
+				border-radius: 4px;
+				margin-bottom: 10px;
+			}
+			.connected {
+				background-color: #dff0d8;
+				color: #3c763d;
+			}
+			.disconnected {
+				background-color: #f2dede;
+				color: #a94442;
+			}
+			.timer {
+				font-size: 18px;
+				font-weight: bold;
+				margin-bottom: 8px;
+			}
+			.progress-bar-container {
+				width: 100%;
+				background-color: #f0f0f0;
+				border-radius: 4px;
+				height: 20px;
+				overflow: hidden;
+			}
+			.progress-bar {
+				height: 100%;
+				background-color: #4caf50;
+				width: 0%;
+				transition: width 1s linear;
+			}
+			.last-update-time {
+				font-size: 12px;
+				color: #666;
+				margin-top: 8px;
+				font-style: italic;
+			}
+			.highlight {
+				animation: highlight-animation 2s ease-in-out;
+			}
+			@keyframes highlight-animation {
+				0% {
+					background-color: #f9f9f9;
+				}
+				50% {
+					background-color: #e6ffe6;
+				}
+				100% {
+					background-color: #f9f9f9;
+				}
+			}
+			.data-info {
+				margin-bottom: 5px;
+			}
+			.device-status {
+				margin-top: 10px;
+				padding: 10px;
+				background-color: #f0f0f0;
+				border-radius: 4px;
+				font-family: monospace;
+				white-space: pre-wrap;
+				display: none;
+			}
+		</style>
+	</head>
+	<body>
+		<div class="container">
+			<h1>Oxi Sensor Dashboard</h1>
+
+			<div class="card">
+				<h2>Connection Status</h2>
+				<div
+					id="connection-status"
+					class="status disconnected">
+					Checking connection...
+				</div>
+				<button
+					id="clear-connection"
+					class="button clear">
+					Clear Connection
+				</button>
+				<button
+					id="check-status"
+					class="button check">
+					Check Device Status
+				</button>
+				<div
+					id="device-status"
+					class="device-status"></div>
+			</div>
+
+			<div class="card">
+				<h2>Data Collection</h2>
+				<div
+					class="collection-status"
+					id="collection-status"
+					style="
+						margin-bottom: 15px;
+						padding: 10px;
+						border-radius: 4px;
+						display: none;
+					">
+					<div style="font-weight: bold">
+						Collection Status:
+						<span id="status-text">Inactive</span>
+					</div>
+				</div>
+				<button
+					id="start-button"
+					class="button"
+					disabled>
+					Start Collection
+				</button>
+				<button
+					id="stop-button"
+					class="button stop"
+					disabled>
+					Stop Collection
+				</button>
+			</div>
+
+			<div class="card">
+				<h2>Last Data Reading</h2>
+				<div id="last-data-container">
+					<div id="last-data">No data received yet</div>
+					<div
+						id="last-data-time"
+						class="last-update-time"></div>
+				</div>
+			</div>
+		</div>
+
+		<script>
+			// Trạng thái ban đầu
+			let isConnected = false;
+			let isCollecting = {{ 'true' if is_collecting else 'false' }};
+			let lastDataInfo = null;
+
+			// DOM elements
+			const connectionStatus = document.getElementById('connection-status');
+			const startButton = document.getElementById('start-button');
+			const stopButton = document.getElementById('stop-button');
+			const clearConnectionButton = document.getElementById('clear-connection');
+			const checkStatusButton = document.getElementById('check-status');
+			const deviceStatusDiv = document.getElementById('device-status');
+			const lastDataDiv = document.getElementById('last-data');
+			const lastDataContainer = document.getElementById('last-data-container');
+			const lastDataTime = document.getElementById('last-data-time');
+			const collectionStatus = document.getElementById('collection-status');
+			const statusText = document.getElementById('status-text');
+
+			// Functions
+			function updateUI() {
+				// Update connection status
+				connectionStatus.textContent = isConnected ? 'Connected' : 'Disconnected';
+				connectionStatus.className = 'status ' + (isConnected ? 'connected' : 'disconnected');
+
+				// Update buttons
+				startButton.disabled = !isConnected || isCollecting;
+				stopButton.disabled = !isConnected || !isCollecting;
+				checkStatusButton.disabled = !isConnected;
+
+				// Update collection status indicator
+				if (isCollecting) {
+					collectionStatus.style.display = 'block';
+					collectionStatus.style.backgroundColor = '#dff0d8';
+					collectionStatus.style.color = '#3c763d';
+					statusText.textContent = 'Active - Collecting Data';
+				} else if (isConnected) {
+					collectionStatus.style.display = 'block';
+					collectionStatus.style.backgroundColor = '#fcf8e3';
+					collectionStatus.style.color = '#8a6d3b';
+					statusText.textContent = 'Ready - Not Collecting';
+				} else {
+					collectionStatus.style.display = 'none';
+				}
+			}
+
+			function updateLastDataDisplay(data) {
+				if (!data) return;
+
+				// Store new data info
+				lastDataInfo = data;
+
+				// Highlight the container to show new data arrived
+				lastDataContainer.classList.add('highlight');
+				setTimeout(() => {
+					lastDataContainer.classList.remove('highlight');
+				}, 2000);
+
+				// Format the display with more details
+				let html = '';
+
+				if (data.heartRate) {
+					html += `<div class="data-info"><strong>Heart Rate:</strong> ${data.heartRate.toFixed(1)} BPM</div>`;
+				}
+
+				if (data.oxygenLevel) {
+					html += `<div class="data-info"><strong>SpO2:</strong> ${data.oxygenLevel.toFixed(1)}%</div>`;
+				}
+
+				if (data.actionClass !== undefined && data.actionClass >= 0) {
+					html += `<div class="data-info"><strong>Activity Class:</strong> ${data.actionClass}</div>`;
+					if (data.confidence) {
+						html += `<div class="data-info"><strong>Confidence:</strong> ${(data.confidence * 100).toFixed(1)}%</div>`;
+					}
+				}
+
+				if (data.timestamp) {
+					html += `<div class="data-info"><strong>Timestamp:</strong> ${data.timestamp}</div>`;
+				}
+
+				// If collecting data, show a status indicator
+				if (isCollecting) {
+					html += `<div class="data-info" style="color: green; font-weight: bold; margin-top: 10px;">Data collection active</div>`;
+				}
+
+				if (html === '') {
+					html = 'No data available';
+				}
+
+				lastDataDiv.innerHTML = html;
+
+				// Update the "last updated" time
+				const now = new Date();
+				lastDataTime.textContent = `Updated: ${now.toLocaleTimeString()}`;
+			}
+
+			// Event listeners
+			startButton.addEventListener('click', async () => {
+				try {
+					startButton.disabled = true; // Disable immediately to prevent double clicks
+					const response = await fetch('/start', { method: 'POST' });
+					const data = await response.json();
+					if (data.status === 'success') {
+						isCollecting = true;
+						updateUI();
+						// Display "started collection" message in last data area
+						lastDataDiv.innerHTML = '<div style="color: green; font-weight: bold;">Started data collection. Waiting for data...</div>';
+					} else {
+						alert('Failed to start: ' + data.message);
+						startButton.disabled = !isConnected; // Re-enable if appropriate
+					}
+				} catch (error) {
+					console.error('Error:', error);
+					alert('Error starting collection');
+					startButton.disabled = !isConnected; // Re-enable if appropriate
+				}
+			});
+
+			stopButton.addEventListener('click', async () => {
+				try {
+					const response = await fetch('/stop', { method: 'POST' });
+					const data = await response.json();
+					if (data.status === 'success') {
+						isCollecting = false;
+						updateUI();
+						// Add stopped indicator
+						lastDataDiv.innerHTML += '<div style="color: orange; font-weight: bold; margin-top: 10px;">Data collection stopped</div>';
+					} else {
+						alert('Failed to stop: ' + data.message);
+					}
+				} catch (error) {
+					console.error('Error:', error);
+					alert('Error stopping collection');
+				}
+			});
+
+			clearConnectionButton.addEventListener('click', async () => {
+				try {
+					const response = await fetch('/clear-connection', { method: 'POST' });
+					const data = await response.json();
+					if (data.status === 'success') {
+						alert('Connection cleared. Waiting for new sensor connection.');
+						isConnected = false;
+						isCollecting = false;
+						deviceStatusDiv.style.display = 'none';
+						updateUI();
+					} else {
+						alert('Failed to clear connection: ' + data.message);
+					}
+				} catch (error) {
+					console.error('Error:', error);
+					alert('Error clearing connection');
+				}
+			});
+
+			checkStatusButton.addEventListener('click', async () => {
+				try {
+					deviceStatusDiv.textContent = "Checking status...";
+					deviceStatusDiv.style.display = 'block';
+
+					const response = await fetch('/check-status', { method: 'POST' });
+					const data = await response.json();
+
+					if (data.status === 'success') {
+						// Show the device status
+						deviceStatusDiv.textContent = data.device_status || 'No status information available';
+					} else {
+						deviceStatusDiv.textContent = 'Error: ' + (data.message || 'Failed to get status');
+					}
+				} catch (error) {
+					console.error('Error:', error);
+					deviceStatusDiv.textContent = 'Error checking device status: ' + error.message;
+				}
+			});
+
+			// More robust status checking
+			async function checkStatus() {
+				try {
+					const response = await fetch('/status');
+					const data = await response.json();
+
+					const wasCollecting = isCollecting;
+					isConnected = data.connected;
+					isCollecting = data.collecting;
+
+					// Update last data information
+					if (data.last_data) {
+						updateLastDataDisplay(data.last_data);
+					}
+
+					// Update device status if available and visible
+					if (data.device_status) {
+						// Always update the status content even if not visible
+						deviceStatusDiv.textContent = data.device_status;
+
+						// If status is empty, display "No status available"
+						if (!data.device_status.trim()) {
+							deviceStatusDiv.textContent = "No device status available";
+						}
+					}
+
+					updateUI();
+				} catch (error) {
+					console.error('Error checking status:', error);
+					connectionStatus.textContent = 'Connection error: ' + error.message;
+					connectionStatus.className = 'status disconnected';
+					isConnected = false;
+					updateUI();
+				}
+			}
+
+			// Initial update
+			updateUI();
+
+			// Check status every 2 seconds
+			setInterval(checkStatus, 2000);
+
+			// Check once on load
+			checkStatus();
+		</script>
+	</body>
+</html>
