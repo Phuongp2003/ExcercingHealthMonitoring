@@ -1,11 +1,19 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
+// System libraries
 #include <WiFi.h>
 #include <WiFiUdp.h>
 #include <Wire.h>
 #include <WiFiClient.h>
 #include <HTTPClient.h>
+#include <Ticker.h>
+#include <CircularBuffer.hpp>
+#include <TensorFlowLite_ESP32.h>
+#include "tensorflow/lite/micro/all_ops_resolver.h"
+#include "tensorflow/lite/micro/micro_error_reporter.h"
+#include "tensorflow/lite/micro/micro_interpreter.h"
+#include "tensorflow/lite/schema/schema_generated.h"
 #include "MAX30105.h"
 
 // WiFi configuration
@@ -22,59 +30,75 @@
 #define SENSOR_BUFFER_SIZE 250 // Number of samples to store
 #define WINDOW_SIZE 100        // Size of sliding window for model input
 
-// Memory allocation
-#define PROCESSING_MEMORY_PERCENT 75
-#define RECORDING_MEMORY_PERCENT 25
+// LED Pins
+#define BLUE_LED_PIN 2 // LED for system status (Blue)
 
-// Pin definitions - Using ESP32 GPIO numbers instead of Dx labels
-#define MAX30102_SDA_PIN 21 // GPIO21 (SDA)
-#define MAX30102_SCL_PIN 22 // GPIO22 (SCL)
-#define LED_PIN 2           // GPIO2 (built-in LED on many ESP32 boards)
-
-// Additional status LEDs
-#define LED_WIFI_PIN 14       // LED for WiFi status (Blue)
-#define LED_SERVER_PIN 12     // LED for server connection status (Green)
-#define LED_SENSOR_PIN 27     // LED for sensor status (Yellow)
-#define LED_PROCESSING_PIN 26 // LED for processing status (White)
-#define LED_MODEL_PIN 25      // LED for model status (Purple)
-#define LED_ERROR_PIN 33      // LED for error status (Red)
-
-// LED states
-#define LED_ON LOW // Most ESP32/ESP8266 LEDs are active LOW
-#define LED_OFF HIGH
+// LED states - try using active HIGH instead of active LOW
+// since the LED is not lighting up
+#define LED_ON HIGH // Changed from LOW to HIGH
+#define LED_OFF LOW // Changed from HIGH to LOW
 
 // Task priorities
 #define SENSOR_TASK_PRIORITY 3
 #define PROCESSING_TASK_PRIORITY 2
-#define SERVER_TASK_PRIORITY 1
 
 // Task stack sizes
-#define SENSOR_TASK_STACK_SIZE 4096 // Increased from 2048
+#define SENSOR_TASK_STACK_SIZE 4096
 #define PROCESSING_TASK_STACK_SIZE 8192
-#define SERVER_TASK_STACK_SIZE 2048
 
 // Delay between sensor readings in ms (1000/SAMPLING_RATE)
 #define SENSOR_READ_DELAY 25
 
+// MAX30102 sensor pins
+#define MAX30102_SDA_PIN 21
+#define MAX30102_SCL_PIN 22
+
+// TFLite arena size
+#define TENSOR_ARENA_SIZE (40 * 1024)
+
+// System states
+typedef enum
+{
+    STATE_INIT,       // Initial state
+    STATE_IDLE,       // System ready but not collecting
+    STATE_COLLECTING, // Collecting data
+    STATE_PROCESSING, // Processing data
+    STATE_ERROR       // Error state
+} SystemState;
+
+// LED patterns
+typedef enum
+{
+    LED_PATTERN_ERROR,        // Error: rapid blink
+    LED_PATTERN_DISCONNECTED, // Not connected: single blink
+    LED_PATTERN_IDLE,         // Connected idle: double blink
+    LED_PATTERN_COLLECTING,   // Collecting: mostly on with occasional off
+    LED_PATTERN_PROCESSING    // Processing: triple blink
+} LedPattern;
+
 // Data buffer for sensor readings
 struct SensorData
 {
-    float red;
-    float ir;
-    // Add timestamp if needed
+    float red; // Converted from uint32_t raw data
+    float ir;  // Converted from uint32_t raw data
 };
 
-// Result of model inference
+// Double buffer structure
+typedef struct
+{
+    SensorData buffer[WINDOW_SIZE];
+    int count;
+    bool ready;
+} DataBuffer;
+
+// Result of model inference and vital signs
 struct InferenceResult
 {
     float heartRate;
     float oxygenLevel;
     int actionClass;
     float confidence;
+    unsigned long timestamp;
 };
-
-// ESP8266 has limited task support compared to ESP32
-// It's recommended to use no more than 2 tasks total on ESP8266
-#define ESP8266_MAX_TASKS 2
 
 #endif // CONFIG_H

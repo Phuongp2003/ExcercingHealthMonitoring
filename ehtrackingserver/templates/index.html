@@ -189,6 +189,9 @@
 			let isConnected = false;
 			let isCollecting = {{ 'true' if is_collecting else 'false' }};
 			let lastDataInfo = null;
+			let deviceCurrentState = "Unknown";
+			let lastStatusCheck = 0;
+			let statusCheckInProgress = false;
 
 			// DOM elements
 			const connectionStatus = document.getElementById('connection-status');
@@ -219,12 +222,12 @@
 					collectionStatus.style.display = 'block';
 					collectionStatus.style.backgroundColor = '#dff0d8';
 					collectionStatus.style.color = '#3c763d';
-					statusText.textContent = 'Active - Collecting Data';
+					statusText.textContent = `Active - Collecting Data (${deviceCurrentState})`;
 				} else if (isConnected) {
 					collectionStatus.style.display = 'block';
 					collectionStatus.style.backgroundColor = '#fcf8e3';
 					collectionStatus.style.color = '#8a6d3b';
-					statusText.textContent = 'Ready - Not Collecting';
+					statusText.textContent = `Ready - Not Collecting (${deviceCurrentState})`;
 				} else {
 					collectionStatus.style.display = 'none';
 				}
@@ -284,39 +287,58 @@
 			startButton.addEventListener('click', async () => {
 				try {
 					startButton.disabled = true; // Disable immediately to prevent double clicks
+					stopButton.disabled = true; // Disable stop button during transition
+
 					const response = await fetch('/start', { method: 'POST' });
 					const data = await response.json();
+
+					// Immediately verify the actual device state after sending command
+					await verifyDeviceState();
+
 					if (data.status === 'success') {
-						isCollecting = true;
+						// Use the verified state from verifyDeviceState instead of assuming
 						updateUI();
 						// Display "started collection" message in last data area
 						lastDataDiv.innerHTML = '<div style="color: green; font-weight: bold;">Started data collection. Waiting for data...</div>';
 					} else {
 						alert('Failed to start: ' + data.message);
-						startButton.disabled = !isConnected; // Re-enable if appropriate
+						// Re-check status to make sure UI matches reality
+						await checkStatus();
 					}
 				} catch (error) {
 					console.error('Error:', error);
 					alert('Error starting collection');
-					startButton.disabled = !isConnected; // Re-enable if appropriate
+					// Re-check status to make sure UI matches reality
+					await checkStatus();
 				}
 			});
 
 			stopButton.addEventListener('click', async () => {
 				try {
+					stopButton.disabled = true; // Disable immediately to prevent double clicks
+					startButton.disabled = true; // Disable start button during transition
+
 					const response = await fetch('/stop', { method: 'POST' });
 					const data = await response.json();
+
+					// Immediately verify the actual device state after sending command
+					await verifyDeviceState();
+
 					if (data.status === 'success') {
-						isCollecting = false;
+						// Use the verified state from verifyDeviceState instead of assuming
 						updateUI();
 						// Add stopped indicator
 						lastDataDiv.innerHTML += '<div style="color: orange; font-weight: bold; margin-top: 10px;">Data collection stopped</div>';
 					} else {
 						alert('Failed to stop: ' + data.message);
+						// Re-check status to make sure UI matches reality
+						await checkStatus();
 					}
 				} catch (error) {
 					console.error('Error:', error);
 					alert('Error stopping collection');
+					// Re-check status to make sure UI matches reality
+					await checkStatus();
 				}
 			});
 
@@ -359,29 +381,110 @@
 				}
 			});
 
-			// More robust status checking
+			// New function to explicitly verify device state after commands
+			async function verifyDeviceState() {
+				try {
+					// Wait a short time for the device to process the command
+					await new Promise(resolve => setTimeout(resolve, 300));
+
+					const response = await fetch('/check-status', { method: 'POST' });
+					const data = await response.json();
+
+					if (data.status === 'success') {
+						// Update state variables with the actual device state
+						isCollecting = data.is_collecting;
+						deviceCurrentState = data.current_state || "Unknown";
+
+						console.log(`Verified device state: isCollecting=${isCollecting}, state=${deviceCurrentState}`);
+
+						// Update UI immediately with the verified state
+						updateUI();
+
+						// Show any state mismatch in device status area
+						if (data.server_thinks_collecting !== data.is_collecting) {
+							deviceStatusDiv.style.display = 'block';
+							deviceStatusDiv.textContent = `WARNING: State mismatch detected! Server thought collecting=${data.server_thinks_collecting}, but device reports collecting=${data.is_collecting}. Synced now.`;
+						}
+
+						return true;
+					}
+					return false;
+				} catch (error) {
+					console.error('Error verifying device state:', error);
+					return false;
+				}
+			}
+
+			// More robust status checking with debouncing
 			async function checkStatus() {
+				// Prevent multiple concurrent status checks
+				if (statusCheckInProgress) {
+					return;
+				}
+
+				const now = Date.now();
+				// Don't check more than once per second
+				if (now - lastStatusCheck < 1000) {
+					return;
+				}
+
+				lastStatusCheck = now;
+				statusCheckInProgress = true;
+
 				try {
 					const response = await fetch('/status');
 					const data = await response.json();
 
+					const wasConnected = isConnected;
 					const wasCollecting = isCollecting;
+
 					isConnected = data.connected;
 					isCollecting = data.collecting;
+					deviceCurrentState = data.current_state || deviceCurrentState;
+
+					// If connection state changed
+					if (wasConnected !== isConnected) {
+						console.log(`Connection state changed: ${wasConnected} -> ${isConnected}`);
+						if (!isConnected) {
+							// Connection lost
+							deviceStatusDiv.style.display = 'block';
+							deviceStatusDiv.textContent = "Connection to device lost. Waiting for device to reconnect...";
+
+							// Reset state
+							isCollecting = false;
+							deviceCurrentState = "DISCONNECTED";
+						} else {
+							// Connection established
+							deviceStatusDiv.style.display = 'block';
+							deviceStatusDiv.textContent = "Device connected successfully! Checking device status...";
+							await verifyDeviceState();
+						}
+					}
+
+					// If collection state changed, verify it matches what we expect
+					if (wasCollecting !== isCollecting && isConnected) {
+						console.log(`Collection state changed: ${wasCollecting} -> ${isCollecting}`);
+						await verifyDeviceState();
+					}
 
 					// Update last data information
 					if (data.last_data) {
 						updateLastDataDisplay(data.last_data);
 					}
 
-					// Update device status if available and visible
+					// Update device status if available
 					if (data.device_status) {
-						// Always update the status content even if not visible
-						deviceStatusDiv.textContent = data.device_status;
+						// Keep the device status area visible if it was already shown
+						if (deviceStatusDiv.style.display === 'block') {
+							deviceStatusDiv.textContent = data.device_status || "No device status available";
+						}
 
-						// If status is empty, display "No status available"
-						if (!data.device_status.trim()) {
-							deviceStatusDiv.textContent = "No device status available";
+						// Extract current state from device status if available
+						if (data.device_status && data.device_status.includes("Current State:")) {
+							const stateMatch = data.device_status.match(/Current State: (\w+)/);
+							if (stateMatch && stateMatch[1]) {
+								deviceCurrentState = stateMatch[1];
+							}
 						}
 					}
 
@@ -392,6 +495,8 @@
 					connectionStatus.className = 'status disconnected';
 					isConnected = false;
 					updateUI();
+				} finally {
+					statusCheckInProgress = false;
 				}
 			}
 
