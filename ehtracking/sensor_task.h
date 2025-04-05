@@ -85,8 +85,8 @@ void sensorTask(void *parameter)
         {
             lastReadTime = currentTime;
 
-            // Only collect data when in collecting state
-            if (isCollecting())
+            // Modified: Continue collecting data during both COLLECTING and PROCESSING states
+            if (isCollecting() || isInState(STATE_PROCESSING))
             {
                 SensorData data;
 

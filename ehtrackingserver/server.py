@@ -30,15 +30,22 @@ last_data_info = None
 tcp_server_socket = None
 lock = threading.Lock()
 device_status = None
+command_status = {"command": None, "timestamp": None,
+                  "completed": False, "error": None}
+# Add variables to track the last status update from device
+last_device_state_update = 0
+device_reported_state = "UNKNOWN"
+device_is_collecting = False
+command_in_progress = False
 
 # Flask app
 app = Flask(__name__)
 
-# Send TCP command to device
+# Send TCP command to device with better state tracking
 
 
 def send_tcp_command(command):
-    global connected_devices, is_collecting, device_status
+    global connected_devices, is_collecting, device_status, command_status, command_in_progress, device_reported_state, device_is_collecting
 
     if not connected_devices:
         logger.warning("No device connected to send command")
@@ -50,44 +57,67 @@ def send_tcp_command(command):
 
     try:
         logger.info(f"Sending TCP command: {command} to {device_addr}")
+
+        # Track command status for verification
+        with lock:
+            command_status = {
+                "command": command,
+                "timestamp": time.time(),
+                "completed": False,
+                "error": None
+            }
+            command_in_progress = True
+
         client_socket.send(f"{command}\n".encode('utf-8'))
 
         # Wait for response with timeout
         client_socket.settimeout(5.0)
-        response = client_socket.recv(1024).decode('utf-8').strip()
-        client_socket.settimeout(None)
+        try:
+            response = client_socket.recv(1024).decode('utf-8').strip()
+            client_socket.settimeout(None)
+            logger.info(f"Received response: {response}")
 
-        logger.info(f"Received response: {response}")
-
-        # Always update device status with latest response
-        with lock:
-            device_status = response
-            logger.info(f"Updated device status to: {device_status}")
-
-        # Update collecting state based on actual device state
-        if "Current State:" in response:
-            try:
-                state_name = response.split("Current State:")[
-                    1].split(",")[0].strip()
-                logger.info(f"Extracted state name: {state_name}")
-                with lock:
-                    is_collecting = (state_name == "COLLECTING")
-                    logger.info(
-                        f"Updated is_collecting to {is_collecting} based on device state")
-            except Exception as e:
-                logger.error(f"Error parsing state from response: {e}")
-
-        # Handle START/STOP command success cases
-        if command == "START" and "OK:" in response:
+            # Always update device status with latest response
             with lock:
-                is_collecting = True
-        elif command == "STOP" and "OK:" in response:
-            with lock:
-                is_collecting = False
+                device_status = response
+                logger.info(f"Updated device status to: {device_status}")
 
-        return "OK" in response
+                # Handle START/STOP command success cases from direct response
+                if command == "START" and "OK:" in response:
+                    command_status["completed"] = True
+
+                    # We'll still wait for a STATUS_INFO update to confirm the actual device state
+                    # Don't update is_collecting yet until confirmed by device status
+                elif command == "STOP" and "OK:" in response:
+                    command_status["completed"] = True
+
+                    # We'll still wait for a STATUS_INFO update to confirm the actual device state
+                    # Don't update is_collecting yet until confirmed by device status
+                elif "OK:" in response:
+                    command_status["completed"] = True
+
+                # Extract state information from response if available
+                if "Current State:" in response:
+                    try:
+                        state_name = response.split("Current State:")[
+                            1].split(",")[0].strip()
+                        device_reported_state = state_name
+                        device_is_collecting = (state_name == "COLLECTING")
+                        last_device_state_update = time.time()
+                    except Exception as e:
+                        logger.error(f"Error parsing state from response: {e}")
+        except socket.timeout:
+            logger.warning(f"Timeout waiting for response to {command}")
+            client_socket.settimeout(None)
+            # We'll rely on subsequent STATUS_INFO updates to determine if command succeeded
+
+        return command_status["completed"]
     except Exception as e:
         logger.error(f"Error sending TCP command: {e}")
+        with lock:
+            command_status["error"] = str(e)
+            command_in_progress = False
+
         # Check if the device is still connected, if not, mark it as disconnected
         if device_addr in connected_devices:
             try:
@@ -105,7 +135,7 @@ def send_tcp_command(command):
 
 
 def handle_tcp_client(client_socket, addr):
-    global connected_devices, device_status
+    global connected_devices, device_status, device_reported_state, device_is_collecting, last_device_state_update
 
     logger.info(f"New connection from {addr[0]}:{addr[1]}")
 
@@ -160,6 +190,36 @@ def handle_tcp_client(client_socket, addr):
                     # Status info message from device after connection
                     with lock:
                         device_status = message[12:].strip()
+
+                        # Extract state and collection status directly from the device status update
+                        if "Current State:" in device_status:
+                            try:
+                                state_name = device_status.split("Current State:")[
+                                    1].split(",")[0].strip()
+                                device_reported_state = state_name
+                                # Consider both COLLECTING and PROCESSING states as "collecting data"
+                                device_is_collecting = (
+                                    state_name == "COLLECTING" or state_name == "PROCESSING")
+                                last_device_state_update = time.time()
+
+                                # Update the server's tracking to match the device's actual state
+                                if is_collecting != device_is_collecting:
+                                    logger.info(
+                                        f"Syncing server state with device: {is_collecting} -> {device_is_collecting}")
+                                    is_collecting = device_is_collecting
+
+                                # If there's a command in progress, this status update might complete it
+                                if command_in_progress and not command_status["completed"]:
+                                    if (command_status["command"] == "START" and device_is_collecting) or \
+                                       (command_status["command"] == "STOP" and not device_is_collecting):
+                                        logger.info(
+                                            f"Command {command_status['command']} completed through status update")
+                                        command_status["completed"] = True
+                                        command_in_progress = False
+                            except Exception as e:
+                                logger.error(
+                                    f"Error parsing state from status update: {e}")
+
                     logger.info(
                         f"Received status info from {addr}: {device_status}")
                     client_socket.send("OK: Status received\n".encode('utf-8'))
@@ -226,74 +286,174 @@ def index():
 @app.route('/status')
 def status():
     with lock:
-        # Extract current state from device status if available
-        current_state = "Unknown"
-        if device_status and "Current State:" in device_status:
-            state_parts = device_status.split("Current State:")
-            if len(state_parts) > 1:
-                current_state = state_parts[1].split(",")[0].strip()
+        # Use the device-reported state as the source of truth
+        current_state = device_reported_state if device_reported_state != "UNKNOWN" else "Unknown"
+        collecting_state = device_is_collecting
+
+        # Add time since last device state update
+        time_since_update = time.time(
+        ) - last_device_state_update if last_device_state_update > 0 else -1
 
         return jsonify({
             'connected': len(connected_devices) > 0,
-            'collecting': is_collecting,
+            'collecting': collecting_state,
             'last_data': last_data_info,
             'device_status': device_status,
-            'current_state': current_state
+            'current_state': current_state,
+            'time_since_update': time_since_update,
+            'command_in_progress': command_in_progress,
+            'server_tracking_state': is_collecting
         })
 
 
 @app.route('/start', methods=['POST'])
 def start_collection():
+    global command_in_progress, device_is_collecting, is_collecting
+
     if len(connected_devices) == 0:
         return jsonify({'status': 'error', 'message': 'No device connected'})
 
     # First check current status to avoid unnecessary commands
     try:
-        pre_check = send_tcp_command("STATUS")
-        if pre_check and "Current State: COLLECTING" in device_status:
+        # Don't send command if already in the correct state according to device
+        if device_is_collecting:
             logger.info("Device already collecting, no need to send START")
             return jsonify({'status': 'success', 'message': 'Already collecting'})
+
+        # Another command is already in progress
+        if command_in_progress:
+            return jsonify({'status': 'error', 'message': 'Another command is already in progress'})
     except Exception as e:
         logger.warning(f"Error in pre-check before START: {e}")
 
     # Send START command
     success = send_tcp_command("START")
 
-    # Verify the state changed with a delay
-    time.sleep(0.3)
-    verify_success = send_tcp_command("STATUS")
+    # Wait for status update from device to confirm state change
+    # We'll wait for up to 5 seconds for a status update to confirm
+    start_time = time.time()
+    timeout = 5.0
+    verification_attempts = 0
 
-    if success:
-        return jsonify({'status': 'success'})
-    else:
-        return jsonify({'status': 'error', 'message': 'Failed to start collection'})
+    logger.info("Waiting for device status update to confirm START command...")
+
+    while time.time() - start_time < timeout:
+        time.sleep(0.5)  # Brief pause between checks
+        verification_attempts += 1
+
+        # The device should send a STATUS_INFO update soon
+        with lock:
+            # If we've received a status update since sending the command
+            if last_device_state_update > command_status["timestamp"]:
+                if device_is_collecting:
+                    logger.info(
+                        f"Device confirmed state change to COLLECTING after {verification_attempts} attempts")
+                    is_collecting = True  # Update server state to match device
+                    command_in_progress = False
+                    return jsonify({'status': 'success'})
+                else:
+                    # State update received but device still not collecting
+                    if verification_attempts >= 5:  # Give it a few attempts
+                        logger.warning(
+                            "Device reported status after START but still not collecting")
+                        command_in_progress = False
+                        return jsonify({'status': 'error', 'message': 'Command sent but device did not start collecting'})
+
+    # If we get here, we timed out waiting for device confirmation
+    with lock:
+        # Check one more time in case an update came in during jsonify
+        if device_is_collecting:
+            logger.info("Device state eventually changed to COLLECTING")
+            is_collecting = True
+            command_in_progress = False
+            return jsonify({'status': 'success'})
+
+        command_in_progress = False
+        error_msg = "Timed out waiting for device to confirm state change"
+        logger.warning(error_msg)
+
+        # Force a status check to see what happened
+        send_tcp_command("STATUS")
+
+        return jsonify({
+            'status': 'pending',
+            'message': 'Command sent but waiting for device confirmation'
+        })
 
 
 @app.route('/stop', methods=['POST'])
 def stop_collection():
+    global command_in_progress, device_is_collecting, is_collecting
+
     if len(connected_devices) == 0:
         return jsonify({'status': 'error', 'message': 'No device connected'})
 
     # First check current status to avoid unnecessary commands
     try:
-        pre_check = send_tcp_command("STATUS")
-        if pre_check and "Current State: IDLE" in device_status:
+        # Don't send command if already in the correct state according to device
+        if not device_is_collecting:
             logger.info("Device already idle, no need to send STOP")
             return jsonify({'status': 'success', 'message': 'Already stopped'})
+
+        # Another command is already in progress
+        if command_in_progress:
+            return jsonify({'status': 'error', 'message': 'Another command is already in progress'})
     except Exception as e:
         logger.warning(f"Error in pre-check before STOP: {e}")
 
     # Send STOP command
     success = send_tcp_command("STOP")
 
-    # Verify the state changed with a delay
-    time.sleep(0.3)
-    verify_success = send_tcp_command("STATUS")
+    # Wait for status update from device to confirm state change
+    # We'll wait for up to 5 seconds for a status update to confirm
+    start_time = time.time()
+    timeout = 5.0
+    verification_attempts = 0
 
-    if success:
-        return jsonify({'status': 'success'})
-    else:
-        return jsonify({'status': 'error', 'message': 'Failed to stop collection'})
+    logger.info("Waiting for device status update to confirm STOP command...")
+
+    while time.time() - start_time < timeout:
+        time.sleep(0.5)  # Brief pause between checks
+        verification_attempts += 1
+
+        # The device should send a STATUS_INFO update soon
+        with lock:
+            # If we've received a status update since sending the command
+            if last_device_state_update > command_status["timestamp"]:
+                if not device_is_collecting:
+                    logger.info(
+                        f"Device confirmed state change to IDLE after {verification_attempts} attempts")
+                    is_collecting = False  # Update server state to match device
+                    command_in_progress = False
+                    return jsonify({'status': 'success'})
+                else:
+                    # State update received but device still collecting
+                    if verification_attempts >= 5:  # Give it a few attempts
+                        logger.warning(
+                            "Device reported status after STOP but still collecting")
+                        command_in_progress = False
+                        return jsonify({'status': 'error', 'message': 'Command sent but device did not stop collecting'})
+
+    # If we get here, we timed out waiting for device confirmation
+    with lock:
+        # Check one more time in case an update came in during jsonify
+        if not device_is_collecting:
+            logger.info("Device state eventually changed to IDLE")
+            is_collecting = False
+            command_in_progress = False
+            return jsonify({'status': 'success'})
+
+        command_in_progress = False
+        error_msg = "Timed out waiting for device to confirm state change"
+        logger.warning(error_msg)
+
+        # Force a status check to see what happened
+        send_tcp_command("STATUS")
+
+        return jsonify({
+            'status': 'pending',
+            'message': 'Command sent but waiting for device confirmation'
+        })
 
 
 @app.route('/check-status', methods=['POST'])
@@ -312,7 +472,9 @@ def check_status():
                 state_part = device_status.split("Current State:")[
                     1].split(",")[0].strip()
                 current_state = state_part
-                is_actually_collecting = (state_part == "COLLECTING")
+                # Consider both COLLECTING and PROCESSING states as active measurement
+                is_actually_collecting = (
+                    state_part == "COLLECTING" or state_part == "PROCESSING")
 
                 # Update our local tracking to match device
                 with lock:
@@ -390,12 +552,23 @@ def receive_data():
         with lock:
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-            # Create a data info object
+            # Map activity class to descriptive name
+            activity_name = "Unknown"
+            activity_class = data.get('actionClass', -1)
+            if activity_class == 0:
+                activity_name = "Resting after exercise"
+            elif activity_class == 1:
+                activity_name = "Sitting"
+            elif activity_class == 2:
+                activity_name = "Walking"
+
+            # Create a data info object with activity name
             last_data_info = {
                 'timestamp': timestamp,
                 'heartRate': data.get('heartRate', 0),
                 'oxygenLevel': data.get('oxygenLevel', 0),
-                'actionClass': data.get('actionClass', -1),
+                'actionClass': activity_class,
+                'activityName': activity_name,
                 'confidence': data.get('confidence', 0),
                 'deviceState': data.get('deviceState', 'Unknown')
             }
@@ -415,6 +588,20 @@ def receive_data():
     except Exception as e:
         logger.error(f"Error processing data: {e}")
         return jsonify({'status': 'error', 'message': str(e)})
+
+
+@app.route('/static/<path:path>')
+def serve_static(path):
+    return app.send_static_file(os.path.join('static', path))
+
+
+# Create a directory for static files if it doesn't exist
+if not os.path.exists('static'):
+    os.makedirs('static')
+if not os.path.exists('static/css'):
+    os.makedirs('static/css')
+if not os.path.exists('static/js'):
+    os.makedirs('static/js')
 
 
 if __name__ == '__main__':

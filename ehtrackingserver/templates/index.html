@@ -6,116 +6,9 @@
 			name="viewport"
 			content="width=device-width, initial-scale=1.0" />
 		<title>Oxi Sensor Dashboard</title>
-		<style>
-			body {
-				font-family: Arial, sans-serif;
-				margin: 0;
-				padding: 20px;
-			}
-			.container {
-				max-width: 800px;
-				margin: 0 auto;
-			}
-			.card {
-				border: 1px solid #ddd;
-				border-radius: 5px;
-				padding: 20px;
-				margin-bottom: 20px;
-				background-color: #f9f9f9;
-			}
-			.button {
-				background-color: #4caf50;
-				border: none;
-				color: white;
-				padding: 10px 20px;
-				text-align: center;
-				text-decoration: none;
-				display: inline-block;
-				font-size: 16px;
-				margin: 4px 2px;
-				cursor: pointer;
-				border-radius: 4px;
-			}
-			.button.stop {
-				background-color: #f44336;
-			}
-			.button.clear {
-				background-color: #ff9800;
-			}
-			.button.check {
-				background-color: #2196f3;
-			}
-			.button.files {
-				background-color: #9c27b0;
-			}
-			.button:disabled {
-				background-color: #cccccc;
-				cursor: not-allowed;
-			}
-			.status {
-				padding: 10px;
-				border-radius: 4px;
-				margin-bottom: 10px;
-			}
-			.connected {
-				background-color: #dff0d8;
-				color: #3c763d;
-			}
-			.disconnected {
-				background-color: #f2dede;
-				color: #a94442;
-			}
-			.timer {
-				font-size: 18px;
-				font-weight: bold;
-				margin-bottom: 8px;
-			}
-			.progress-bar-container {
-				width: 100%;
-				background-color: #f0f0f0;
-				border-radius: 4px;
-				height: 20px;
-				overflow: hidden;
-			}
-			.progress-bar {
-				height: 100%;
-				background-color: #4caf50;
-				width: 0%;
-				transition: width 1s linear;
-			}
-			.last-update-time {
-				font-size: 12px;
-				color: #666;
-				margin-top: 8px;
-				font-style: italic;
-			}
-			.highlight {
-				animation: highlight-animation 2s ease-in-out;
-			}
-			@keyframes highlight-animation {
-				0% {
-					background-color: #f9f9f9;
-				}
-				50% {
-					background-color: #e6ffe6;
-				}
-				100% {
-					background-color: #f9f9f9;
-				}
-			}
-			.data-info {
-				margin-bottom: 5px;
-			}
-			.device-status {
-				margin-top: 10px;
-				padding: 10px;
-				background-color: #f0f0f0;
-				border-radius: 4px;
-				font-family: monospace;
-				white-space: pre-wrap;
-				display: none;
-			}
-		</style>
+		<link
+			rel="stylesheet"
+			href="/static/css/main.css" />
 	</head>
 	<body>
 		<div class="container">
@@ -174,6 +67,62 @@
 			</div>
 
 			<div class="card">
+				<h2>Vital Signs & Activity</h2>
+				<div class="vitals-grid">
+					<!-- Row 1: Activity (full width) with confidence in corner -->
+					<div class="activity-row">
+						<div
+							class="activity-badge"
+							id="activity-badge">
+							Unknown
+						</div>
+						<div
+							class="confidence-badge"
+							id="confidence-value">
+							Confidence: --
+						</div>
+					</div>
+
+					<!-- Row 2: Heart rate and SpO2 -->
+					<div class="vital-sign">
+						<div class="vital-icon">❤️</div>
+						<div
+							class="vital-value"
+							id="heart-rate-value">
+							--
+						</div>
+						<div class="vital-label">BPM</div>
+					</div>
+
+					<div class="vital-sign">
+						<div class="vital-icon">🫁</div>
+						<div
+							class="vital-value"
+							id="oxygen-value">
+							--
+						</div>
+						<div class="vital-label">SpO₂ %</div>
+					</div>
+
+					<!-- Update time in bottom right corner -->
+					<div
+						class="update-time"
+						id="vitals-update-time">
+						Updated: --
+					</div>
+				</div>
+			</div>
+
+			<div class="card">
+				<h2>Data History (Last 2 Minutes)</h2>
+				<div
+					id="data-history"
+					class="data-history">
+					<div class="history-empty">No data available yet</div>
+				</div>
+			</div>
+
+			<div class="card">
 				<h2>Last Data Reading</h2>
 				<div id="last-data-container">
 					<div id="last-data">No data received yet</div>
@@ -184,330 +133,20 @@
 			</div>
 		</div>
 
+		<!-- Toast notifications container -->
+		<div
+			id="toast-container"
+			class="toast-container"></div>
+
+		<!-- Include JavaScript files -->
 		<script>
-			// Trạng thái ban đầu
-			let isConnected = false;
-			let isCollecting = {{ 'true' if is_collecting else 'false' }};
-			let lastDataInfo = null;
-			let deviceCurrentState = "Unknown";
-			let lastStatusCheck = 0;
-			let statusCheckInProgress = false;
-
-			// DOM elements
-			const connectionStatus = document.getElementById('connection-status');
-			const startButton = document.getElementById('start-button');
-			const stopButton = document.getElementById('stop-button');
-			const clearConnectionButton = document.getElementById('clear-connection');
-			const checkStatusButton = document.getElementById('check-status');
-			const deviceStatusDiv = document.getElementById('device-status');
-			const lastDataDiv = document.getElementById('last-data');
-			const lastDataContainer = document.getElementById('last-data-container');
-			const lastDataTime = document.getElementById('last-data-time');
-			const collectionStatus = document.getElementById('collection-status');
-			const statusText = document.getElementById('status-text');
-
-			// Functions
-			function updateUI() {
-				// Update connection status
-				connectionStatus.textContent = isConnected ? 'Connected' : 'Disconnected';
-				connectionStatus.className = 'status ' + (isConnected ? 'connected' : 'disconnected');
-
-				// Update buttons
-				startButton.disabled = !isConnected || isCollecting;
-				stopButton.disabled = !isConnected || !isCollecting;
-				checkStatusButton.disabled = !isConnected;
-
-				// Update collection status indicator
-				if (isCollecting) {
-					collectionStatus.style.display = 'block';
-					collectionStatus.style.backgroundColor = '#dff0d8';
-					collectionStatus.style.color = '#3c763d';
-					statusText.textContent = `Active - Collecting Data (${deviceCurrentState})`;
-				} else if (isConnected) {
-					collectionStatus.style.display = 'block';
-					collectionStatus.style.backgroundColor = '#fcf8e3';
-					collectionStatus.style.color = '#8a6d3b';
-					statusText.textContent = `Ready - Not Collecting (${deviceCurrentState})`;
-				} else {
-					collectionStatus.style.display = 'none';
-				}
-			}
-
-			function updateLastDataDisplay(data) {
-				if (!data) return;
-
-				// Store new data info
-				lastDataInfo = data;
-
-				// Highlight the container to show new data arrived
-				lastDataContainer.classList.add('highlight');
-				setTimeout(() => {
-					lastDataContainer.classList.remove('highlight');
-				}, 2000);
-
-				// Format the display with more details
-				let html = '';
-
-				if (data.heartRate) {
-					html += `<div class="data-info"><strong>Heart Rate:</strong> ${data.heartRate.toFixed(1)} BPM</div>`;
-				}
-
-				if (data.oxygenLevel) {
-					html += `<div class="data-info"><strong>SpO2:</strong> ${data.oxygenLevel.toFixed(1)}%</div>`;
-				}
-
-				if (data.actionClass !== undefined && data.actionClass >= 0) {
-					html += `<div class="data-info"><strong>Activity Class:</strong> ${data.actionClass}</div>`;
-					if (data.confidence) {
-						html += `<div class="data-info"><strong>Confidence:</strong> ${(data.confidence * 100).toFixed(1)}%</div>`;
-					}
-				}
-
-				if (data.timestamp) {
-					html += `<div class="data-info"><strong>Timestamp:</strong> ${data.timestamp}</div>`;
-				}
-
-				// If collecting data, show a status indicator
-				if (isCollecting) {
-					html += `<div class="data-info" style="color: green; font-weight: bold; margin-top: 10px;">Data collection active</div>`;
-				}
-
-				if (html === '') {
-					html = 'No data available';
-				}
-
-				lastDataDiv.innerHTML = html;
-
-				// Update the "last updated" time
-				const now = new Date();
-				lastDataTime.textContent = `Updated: ${now.toLocaleTimeString()}`;
-			}
-
-			// Event listeners
-			startButton.addEventListener('click', async () => {
-				try {
-					startButton.disabled = true; // Disable immediately to prevent double clicks
-					stopButton.disabled = true; // Disable stop button during transition
-
-					const response = await fetch('/start', { method: 'POST' });
-					const data = await response.json();
-
-					// Immediately verify the actual device state after sending command
-					await verifyDeviceState();
-
-					if (data.status === 'success') {
-						// Use the verified state from verifyDeviceState instead of assuming
-						updateUI();
-						// Display "started collection" message in last data area
-						lastDataDiv.innerHTML = '<div style="color: green; font-weight: bold;">Started data collection. Waiting for data...</div>';
-					} else {
-						alert('Failed to start: ' + data.message);
-						// Re-check status to make sure UI matches reality
-						await checkStatus();
-					}
-				} catch (error) {
-					console.error('Error:', error);
-					alert('Error starting collection');
-					// Re-check status to make sure UI matches reality
-					await checkStatus();
-				}
-			});
-
-			stopButton.addEventListener('click', async () => {
-				try {
-					stopButton.disabled = true; // Disable immediately to prevent double clicks
-					startButton.disabled = true; // Disable start button during transition
-
-					const response = await fetch('/stop', { method: 'POST' });
-					const data = await response.json();
-
-					// Immediately verify the actual device state after sending command
-					await verifyDeviceState();
-
-					if (data.status === 'success') {
-						// Use the verified state from verifyDeviceState instead of assuming
-						updateUI();
-						// Add stopped indicator
-						lastDataDiv.innerHTML += '<div style="color: orange; font-weight: bold; margin-top: 10px;">Data collection stopped</div>';
-					} else {
-						alert('Failed to stop: ' + data.message);
-						// Re-check status to make sure UI matches reality
-						await checkStatus();
-					}
-				} catch (error) {
-					console.error('Error:', error);
-					alert('Error stopping collection');
-					// Re-check status to make sure UI matches reality
-					await checkStatus();
-				}
-			});
-
-			clearConnectionButton.addEventListener('click', async () => {
-				try {
-					const response = await fetch('/clear-connection', { method: 'POST' });
-					const data = await response.json();
-					if (data.status === 'success') {
-						alert('Connection cleared. Waiting for new sensor connection.');
-						isConnected = false;
-						isCollecting = false;
-						deviceStatusDiv.style.display = 'none';
-						updateUI();
-					} else {
-						alert('Failed to clear connection: ' + data.message);
-					}
-				} catch (error) {
-					console.error('Error:', error);
-					alert('Error clearing connection');
-				}
-			});
-
-			checkStatusButton.addEventListener('click', async () => {
-				try {
-					deviceStatusDiv.textContent = "Checking status...";
-					deviceStatusDiv.style.display = 'block';
-
-					const response = await fetch('/check-status', { method: 'POST' });
-					const data = await response.json();
-
-					if (data.status === 'success') {
-						// Show the device status
-						deviceStatusDiv.textContent = data.device_status || 'No status information available';
-					} else {
-						deviceStatusDiv.textContent = 'Error: ' + (data.message || 'Failed to get status');
-					}
-				} catch (error) {
-					console.error('Error:', error);
-					deviceStatusDiv.textContent = 'Error checking device status: ' + error.message;
-				}
-			});
-
-			// New function to explicitly verify device state after commands
-			async function verifyDeviceState() {
-				try {
-					// Wait a short time for the device to process the command
-					await new Promise(resolve => setTimeout(resolve, 300));
-
-					const response = await fetch('/check-status', { method: 'POST' });
-					const data = await response.json();
-
-					if (data.status === 'success') {
-						// Update state variables with the actual device state
-						isCollecting = data.is_collecting;
-						deviceCurrentState = data.current_state || "Unknown";
-
-						console.log(`Verified device state: isCollecting=${isCollecting}, state=${deviceCurrentState}`);
-
-						// Update UI immediately with the verified state
-						updateUI();
-
-						// Show any state mismatch in device status area
-						if (data.server_thinks_collecting !== data.is_collecting) {
-							deviceStatusDiv.style.display = 'block';
-							deviceStatusDiv.textContent = `WARNING: State mismatch detected! Server thought collecting=${data.server_thinks_collecting}, but device reports collecting=${data.is_collecting}. Synced now.`;
-						}
-
-						return true;
-					}
-					return false;
-				} catch (error) {
-					console.error('Error verifying device state:', error);
-					return false;
-				}
-			}
-
-			// More robust status checking with debouncing
-			async function checkStatus() {
-				// Prevent multiple concurrent status checks
-				if (statusCheckInProgress) {
-					return;
-				}
-
-				const now = Date.now();
-				// Don't check more than once per second
-				if (now - lastStatusCheck < 1000) {
-					return;
-				}
-
-				lastStatusCheck = now;
-				statusCheckInProgress = true;
-
-				try {
-					const response = await fetch('/status');
-					const data = await response.json();
-
-					const wasConnected = isConnected;
-					const wasCollecting = isCollecting;
-
-					isConnected = data.connected;
-					isCollecting = data.collecting;
-					deviceCurrentState = data.current_state || deviceCurrentState;
-
-					// If connection state changed
-					if (wasConnected !== isConnected) {
-						console.log(`Connection state changed: ${wasConnected} -> ${isConnected}`);
-						if (!isConnected) {
-							// Connection lost
-							deviceStatusDiv.style.display = 'block';
-							deviceStatusDiv.textContent = "Connection to device lost. Waiting for device to reconnect...";
-
-							// Reset state
-							isCollecting = false;
-							deviceCurrentState = "DISCONNECTED";
-						} else {
-							// Connection established
-							deviceStatusDiv.style.display = 'block';
-							deviceStatusDiv.textContent = "Device connected successfully! Checking device status...";
-							await verifyDeviceState();
-						}
-					}
-
-					// If collection state changed, verify it matches what we expect
-					if (wasCollecting !== isCollecting && isConnected) {
-						console.log(`Collection state changed: ${wasCollecting} -> ${isCollecting}`);
-						await verifyDeviceState();
-					}
-
-					// Update last data information
-					if (data.last_data) {
-						updateLastDataDisplay(data.last_data);
-					}
-
-					// Update device status if available
-					if (data.device_status) {
-						// Keep the device status area visible if it was already shown
-						if (deviceStatusDiv.style.display === 'block') {
-							deviceStatusDiv.textContent = data.device_status || "No device status available";
-						}
-
-						// Extract current state from device status if available
-						if (data.device_status && data.device_status.includes("Current State:")) {
-							const stateMatch = data.device_status.match(/Current State: (\w+)/);
-							if (stateMatch && stateMatch[1]) {
-								deviceCurrentState = stateMatch[1];
-							}
-						}
-					}
-
-					updateUI();
-				} catch (error) {
-					console.error('Error checking status:', error);
-					connectionStatus.textContent = 'Connection error: ' + error.message;
-					connectionStatus.className = 'status disconnected';
-					isConnected = false;
-					updateUI();
-				} finally {
-					statusCheckInProgress = false;
-				}
-			}
-
-			// Initial update
-			updateUI();
-
-			// Check status every 2 seconds
-			setInterval(checkStatus, 2000);
-
-			// Check once on load
-			checkStatus();
+			// Initial state from server
+			const initialState = {
+				isCollecting: {{ 'true' if is_collecting else 'false' }}
+			};
 		</script>
+		<script src="/static/js/data-handler.js"></script>
+		<script src="/static/js/ui-controller.js"></script>
+		<script src="/static/js/app.js"></script>
 	</body>
 </html>

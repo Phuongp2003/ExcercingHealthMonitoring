@@ -1,0 +1,356 @@
+body {
+	font-family: Arial, sans-serif;
+	margin: 0;
+	padding: 20px;
+}
+
+.container {
+	max-width: 800px;
+	margin: 0 auto;
+}
+
+.card {
+	border: 1px solid #ddd;
+	border-radius: 5px;
+	padding: 20px;
+	margin-bottom: 20px;
+	background-color: #f9f9f9;
+}
+
+/* Button styles */
+.button {
+	background-color: #4caf50;
+	border: none;
+	color: white;
+	padding: 10px 20px;
+	text-align: center;
+	text-decoration: none;
+	display: inline-block;
+	font-size: 16px;
+	margin: 4px 2px;
+	cursor: pointer;
+	border-radius: 4px;
+}
+
+.button.stop {
+	background-color: #f44336;
+}
+
+.button.clear {
+	background-color: #ff9800;
+}
+
+.button.check {
+	background-color: #2196f3;
+}
+
+.button.files {
+	background-color: #9c27b0;
+}
+
+.button:disabled {
+	background-color: #cccccc;
+	cursor: not-allowed;
+}
+
+/* Status indicators */
+.status {
+	padding: 10px;
+	border-radius: 4px;
+	margin-bottom: 10px;
+}
+
+.connected {
+	background-color: #dff0d8;
+	color: #3c763d;
+}
+
+.disconnected {
+	background-color: #f2dede;
+	color: #a94442;
+}
+
+.device-status {
+	margin-top: 10px;
+	padding: 10px;
+	background-color: #f0f0f0;
+	border-radius: 4px;
+	font-family: monospace;
+	white-space: pre-wrap;
+	display: none;
+}
+
+/* Animation effects */
+.highlight {
+	animation: highlight-animation 2s ease-in-out;
+}
+
+@keyframes highlight-animation {
+	0% {
+		background-color: #f9f9f9;
+	}
+	50% {
+		background-color: #e6ffe6;
+	}
+	100% {
+		background-color: #f9f9f9;
+	}
+}
+
+.timer {
+	font-size: 18px;
+	font-weight: bold;
+	margin-bottom: 8px;
+}
+
+.last-update-time {
+	font-size: 12px;
+	color: #666;
+	margin-top: 8px;
+	font-style: italic;
+}
+
+.data-info {
+	margin-bottom: 5px;
+}
+
+/* Toast notification styling */
+.toast-container {
+	position: fixed;
+	top: 20px;
+	right: 20px;
+	z-index: 9999;
+	max-width: 300px;
+}
+
+.toast {
+	margin-bottom: 10px;
+	padding: 15px;
+	border-radius: 4px;
+	color: white;
+	background-color: #333;
+	box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+	position: relative;
+	opacity: 0;
+	transform: translateX(50px);
+	transition: opacity 0.5s, transform 0.5s;
+}
+
+.toast.show {
+	opacity: 1;
+	transform: translateX(0);
+}
+
+.toast.error {
+	background-color: #f44336;
+}
+
+.toast.success {
+	background-color: #4caf50;
+}
+
+.toast.info {
+	background-color: #2196f3;
+}
+
+.toast-close {
+	position: absolute;
+	top: 5px;
+	right: 10px;
+	cursor: pointer;
+	color: white;
+	font-weight: bold;
+}
+
+/* Vital signs 2x2 grid layout */
+.vitals-grid {
+	display: grid;
+	grid-template-rows: auto auto;
+	grid-template-columns: 1fr 1fr;
+	grid-gap: 15px;
+	position: relative;
+}
+
+.activity-row {
+	grid-column: 1 / span 2;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	position: relative;
+	margin-bottom: 10px;
+	padding-bottom: 5px;
+	border-bottom: 1px solid #eee;
+}
+
+.vital-sign {
+	display: flex;
+	align-items: center;
+}
+
+.vital-icon {
+	width: 36px;
+	height: 36px;
+	margin-right: 15px;
+	text-align: center;
+	color: #555;
+	font-size: 24px;
+}
+
+.vital-value {
+	font-size: 28px;
+	font-weight: bold;
+	margin-right: 10px;
+}
+
+.vital-label {
+	color: #666;
+	font-size: 14px;
+}
+
+.activity-badge {
+	display: inline-block;
+	padding: 8px 15px;
+	border-radius: 15px;
+	font-weight: bold;
+	font-size: 18px;
+	background-color: #e0e0e0;
+}
+
+.activity-badge.resting {
+	background-color: #e1f5fe;
+	color: #0288d1;
+}
+
+.activity-badge.sitting {
+	background-color: #e8f5e9;
+	color: #388e3c;
+}
+
+.activity-badge.walking {
+	background-color: #fff8e1;
+	color: #ffa000;
+}
+
+.confidence-badge {
+	position: absolute;
+	top: 0;
+	right: 0;
+	font-size: 12px;
+	color: #666;
+	background-color: rgba(240, 240, 240, 0.8);
+	padding: 3px 8px;
+	border-radius: 10px;
+}
+
+.update-time {
+	position: absolute;
+	bottom: -8px;
+	right: 0;
+	font-size: 11px;
+	color: #666;
+	font-style: italic;
+}
+
+/* Command status indicator */
+.command-status {
+	display: inline-block;
+	padding: 3px 8px;
+	border-radius: 10px;
+	margin-left: 10px;
+	font-size: 12px;
+	font-weight: bold;
+}
+
+.command-status.pending {
+	background-color: #fff3cd;
+	color: #856404;
+}
+
+.command-status.success {
+	background-color: #d4edda;
+	color: #155724;
+}
+
+.command-status.error {
+	background-color: #f8d7da;
+	color: #721c24;
+}
+
+/* Sync status indicator */
+.sync-indicator {
+	display: inline-flex;
+	align-items: center;
+	font-size: 12px;
+	color: #6c757d;
+	margin-top: 5px;
+}
+
+.sync-indicator .dot {
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	margin-right: 5px;
+}
+
+.sync-indicator .dot.fresh {
+	background-color: #28a745;
+}
+
+.sync-indicator .dot.stale {
+	background-color: #ffc107;
+}
+
+.sync-indicator .dot.old {
+	background-color: #dc3545;
+}
+
+/* Data history styling */
+.data-history {
+	max-height: 300px;
+	overflow-y: auto;
+	margin-top: 10px;
+	padding-right: 5px;
+}
+
+.history-item {
+	padding: 10px;
+	border-bottom: 1px solid #eee;
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+}
+
+.history-item:last-child {
+	border-bottom: none;
+}
+
+.history-data {
+	flex: 1;
+}
+
+.history-time {
+	font-size: 11px;
+	color: #666;
+	min-width: 80px;
+	text-align: right;
+}
+
+.history-item.new {
+	animation: new-item-highlight 1s ease-in-out;
+}
+
+@keyframes new-item-highlight {
+	0% {
+		background-color: #d4edda;
+	}
+	100% {
+		background-color: transparent;
+	}
+}
+
+.history-empty {
+	text-align: center;
+	color: #999;
+	font-style: italic;
+	padding: 20px;
+}

@@ -19,7 +19,7 @@ void statusWatchdogTask(void *parameter)
 {
     Serial.println("Status watchdog task started");
 
-    const unsigned long STATUS_UPDATE_INTERVAL = 15000; // 15 seconds between forced updates
+    const unsigned long STATUS_UPDATE_INTERVAL = 5000; // Reduced from 15000 to 5000 ms (5 seconds)
 
     while (true)
     {
@@ -44,19 +44,20 @@ void statusWatchdogTask(void *parameter)
         {
             Serial.println("Sending automatic status update to server");
 
-            // Create status string
+            // Create status string with more detailed information
             String status = "STATUS_INFO: ";
             status += "Current State: " + getCurrentStateName();
             status += ", Collecting: " + String(isCollecting() ? "TRUE" : "FALSE");
             status += ", Processing: " + String(isProcessing() ? "TRUE" : "FALSE");
+            status += ", Uptime: " + String(millis() / 1000) + "s";
 
             // Send to server
             tcpClient.println(status);
             lastStatusUpdate = currentTime;
         }
 
-        // Sleep for a while
-        vTaskDelay(pdMS_TO_TICKS(1000));
+        // Sleep for a shorter while to be more responsive
+        vTaskDelay(pdMS_TO_TICKS(500));
     }
 }
 

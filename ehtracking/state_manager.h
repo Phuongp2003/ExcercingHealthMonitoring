@@ -64,7 +64,8 @@ bool isInState(SystemState state)
 // Check if system is actively collecting data
 bool isCollecting()
 {
-    return currentState == STATE_COLLECTING;
+    // Consider both COLLECTING and PROCESSING states as "collecting"
+    return (currentState == STATE_COLLECTING || currentState == STATE_PROCESSING);
 }
 
 // Check if system is processing data
