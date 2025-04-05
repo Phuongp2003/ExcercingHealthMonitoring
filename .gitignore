@@ -5,3 +5,4 @@ __pycache__
 .clinerules-code
 memory-bank
 **/raw
+*.log

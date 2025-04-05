@@ -1,184 +1,53 @@
-# Hệ thống theo dõi sức khỏe khi vận động
+# Health Monitoring System During Physical Activity
 
-## Mô tả
+## Table of Contents
 
-......
+- [Health Monitoring System During Physical Activity](#health-monitoring-system-during-physical-activity)
+  - [Table of Contents](#table-of-contents)
+  - [General Description](#general-description)
+  - [Project Structure](#project-structure)
+  - [Components](#components)
+    - [Data Collection (data-collect)](#data-collection-data-collect)
+    - [Model Training (trainModel)](#model-training-trainmodel)
+    - [Real-time Tracking (realtime-tracking)](#real-time-tracking-realtime-tracking)
 
-## Sử dụng (cho server flask)
+## General Description
 
-### Tạo venv (optional)
+This project develops a health monitoring system during physical activity, using sensors to collect vital data (heart rate, SpO2), classifying activities through machine learning, and displaying results in real-time.
 
-```bash
-python -m venv myenv
-source myenv/bin/activate  # Linux/Mac
-myenv\Scripts\activate     # Windows
-```
+## Project Structure
 
-### Cài các thư viện cần thiết
+The project is organized into three main components:
 
-```bash
-pip install -r .\pyserver\requirements.txt
-pip install flask-socketio
-# Cho server thu thập dữ liệu
-pip install -r .\datac_requirements.txt
-```
+1. **data-collect**: Module for collecting data from the MAX30105 sensor
+2. **trainModel**: Module for training the activity classification model
+3. **realtime-tracking**: Module for real-time health monitoring
 
-### Khởi chạy server
+## Components
 
-```bash
-python pyserver/app.py
-```
+### Data Collection (data-collect)
 
-### Hiển thị dữ liệu thu được
+This module is responsible for collecting sensor data from ESP32 hardware and MAX30105. The collected data will be used to train the activity classification model.
 
-```bash
-py .\read_and_plot_sensor_data.py
-```
+-   [Detailed Documentation](./data-collect/README.MD)
+-   Includes source code for both hardware and server
 
-## Server thu thập dữ liệu (dataC)
+### Model Training (trainModel)
 
-### Khởi chạy server (Development)
+This module uses the collected data to train an activity classification model based on sensor data. The trained model can accurately classify the user's state (resting, sitting, walking) based on data from the MAX30105 sensor.
 
-Để khởi động server trong môi trường phát triển:
+-   **Input**: Reflective optical sensor data (IR and Red light)
+-   **Output**: Activity classification (resting, sitting, walking)
+-   **Technology**: TensorFlow, Jupyter Notebook
+-   **Main Files**:
+    -   `train.ipynb`: Notebook containing the model training process
+    -   `model_esp8266.h`: Model converted to C++ header format for embedding in ESP8266
+    -   `model_int8.tflite`: Model optimized with int8 format for embedded devices
+    -   `best_model.h5`: Saved Keras model with the best performance
 
-```bash
-# Di chuyển vào thư mục dataC
-cd dataC
-# Khởi động server
-python server.py
-```
+### Real-time Tracking (realtime-tracking)
 
-### Khởi chạy server (Production)
+This module implements a real-time health monitoring system, using the trained model to classify activity and monitor health metrics.
 
-```bash
-# Sử dụng Gunicorn
-cd dataC
-gunicorn -w 4 -b 0.0.0.0:8888 wsgi:application
-```
-
-### Triển khai trên Render.com
-
-1. Tạo tài khoản trên Render.com
-2. Tạo một Web Service mới, liên kết với repository của bạn
-3. Cấu hình như sau:
-    - Root Directory: `dataC`
-    - Build Command: `pip install -r ../datac_requirements.txt`
-    - Start Command: `gunicorn -w 4 wsgi:application`
-    - Environment Variables:
-        - `PORT=10000` (hoặc port được Render cung cấp)
-        - `TCP_PORT=10001` (cổng khác cho TCP server)
-4. Bật chức năng "Private Service" nếu bạn muốn dịch vụ riêng tư
-
-#### Lưu ý quan trọng về cổng khi triển khai
-
--   Render.com thường chỉ định cổng 10000 cho ứng dụng web, không phải cổng 8888
--   TCP_PORT (8889) cần được đặt thành cổng khác được Render cho phép (10001)
--   ESP8266 cần được cập nhật để kết nối với domain của Render và cổng TCP mới (10001)
-
-```cpp
-// Cập nhật trong file ESP8266
-const char* serverIP = "your-app.onrender.com"; // Tên miền Render
-const int serverPort = 10001; // Cổng TCP mới
-```
-
-### Triển khai với Systemd (Linux)
-
-1. Tạo file service:
-
-```bash
-sudo nano /etc/systemd/system/oxisensor.service
-```
-
-2. Thêm nội dung sau:
-
-```ini
-[Unit]
-Description=OxiSensor Data Collection Service
-After=network.target
-
-[Service]
-User=your_username
-WorkingDirectory=/path/to/OxiSensor/dataC
-ExecStart=/path/to/venv/bin/gunicorn -w 4 -b 0.0.0.0:8888 wsgi:application
-Restart=always
-RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
-```
-
-3. Kích hoạt và khởi động service:
-
-```bash
-sudo systemctl daemon-reload
-sudo systemctl enable oxisensor
-sudo systemctl start oxisensor
-```
-
-### Bắt đầu đo
-
-```bash
-curl -X POST http://localhost:8888/start
-```
-
-### Dừng đo
-
-```bash
-curl -X POST http://localhost:8888/stop
-```
-
-### Xem và tải các file đã ghi
-
-Truy cập `http://localhost:8888/files` để xem và tải các file đã ghi.
-
-### Xem dashboard
-
-Truy cập `http://localhost:8888/` để xem bảng điều khiển trực quan.
-
-### Xem phân tích dữ liệu thu thập mới nhất
-
-Truy cập `http://localhost:8888/latest-analysis` để xem phân tích của bộ dữ liệu mới nhất.
-
-### Thiết lập IP server cho ESP8266
-
-Trong file `config.h`, thay thế `your_domain_name.com` bằng địa chỉ IP hoặc tên miền của server.
-
-```cpp
-const char* serverIP = "your_domain_name.com"; // Replace with your domain name
-```
-
-### Kiểm tra và mở cổng 8888 và 8889
-
-Đảm bảo rằng cổng 8888 (HTTP) và 8889 (TCP) được mở và có thể truy cập được. Sử dụng lệnh sau để kiểm tra:
-
-```bash
-nc -zv oxinheartbeat.phuongy.works 8888
-nc -zv oxinheartbeat.phuongy.works 8889
-```
-
-Nếu cổng không mở, hãy cập nhật quy tắc tường lửa hoặc cấu hình máy chủ để cho phép kết nối đến các cổng này:
-
-```bash
-# Mở cổng với ufw (Ubuntu)
-sudo ufw allow 8888/tcp
-sudo ufw allow 8889/tcp
-```
-
-## Cấu trúc mã nguồn (dataC)
-
-```
-dataC/
-├── __init__.py                # Định nghĩa package
-├── server.py                  # Entry point cho development & ứng dụng Flask
-├── wsgi.py                    # Entry point WSGI cho production
-├── data_decoder.py            # Xử lý giải mã dữ liệu cảm biến
-├── sampling_analyzer.py       # Phân tích tốc độ lấy mẫu
-├── templates/                 # Templates HTML
-│   ├── analysis.html          # Trang phân tích dữ liệu
-│   ├── files.html             # Trang danh sách các file
-│   └── index.html             # Trang chính/dashboard
-└── data/                      # Thư mục chứa dữ liệu
-    ├── raw/                   # Dữ liệu thô
-    ├── csv/                   # Dữ liệu đã xử lý
-    └── analysis/              # Kết quả phân tích
-```
+-   [Detailed Documentation](./realtime-tracking/README.md)
+-   Includes source code for both ESP8266 hardware and web server
