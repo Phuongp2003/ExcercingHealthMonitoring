@@ -6,6 +6,7 @@
 #include "model_runner.h"
 #include "vital_signs.h"
 #include "wifi_setup.h"
+#include "vital_signs_algo.h"
 
 // Convert class index to activity name
 const char *getActivityName(int classIndex)
@@ -66,8 +67,12 @@ void processingTask(void *parameter)
                     xSemaphoreGive(bufferMutex);
 
                     // Step 1: Calculate vital signs (heart rate and SpO2)
+                    float hr = 0, spo2 = 0;
                     calculateVitalSigns(processBuffer->buffer, WINDOW_SIZE,
-                                        &result.heartRate, &result.oxygenLevel);
+                                        &hr, &spo2);
+                    calc_spo2_filtered(processBuffer->buffer, WINDOW_SIZE, SAMPLING_RATE, &spo2);
+                    result.heartRate = hr;
+                    result.oxygenLevel = spo2;
 
                     Serial.printf("Vital signs: HR=%.1f bpm, SpO2=%.1f%%\n",
                                   result.heartRate, result.oxygenLevel);

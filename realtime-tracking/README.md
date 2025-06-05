@@ -1,112 +1,210 @@
-# Real-Time Health Tracking System
+# Real-time Tracking Module
 
 ## Overview
 
-The `realtime-tracking` module provides a complete health monitoring solution using ESP8266-based embedded systems to track vital signs and classify activities in real-time. This system consists of two main components:
+This module implements the real-time health monitoring system, combining the trained model with live sensor data to provide continuous health monitoring and activity classification.
 
-1. **ESP8266 Embedded System**: Embedded hardware with sensor integration that collects physiological data, performs on-device processing using TensorFlow Lite, and transmits results to a server.
-2. **Monitoring Server**: A Flask-based web server that receives, processes, and visualizes the health data in real-time.
+## System Components
 
-The system enables continuous monitoring of vital signs such as heart rate, SpO2, and respiratory rate, while classifying activities (sitting, walking, running) through machine learning.
+### Hardware Component (ehtracking)
 
-## Features
-
--   Real-time vital signs monitoring
--   TensorFlow Lite activity classification
--   Web-based visualization dashboard
--   Low-latency wireless data transmission
--   Energy-efficient embedded processing
--   Historical data tracking
-
-## Code Flow
-
-For a detailed explanation of the code flow, refer to the [Code Flow Documentation](./docs/code_flow.md).
-
-## Setup
-
-### Hardware Requirements
-
--   ESP8266 microcontroller (NodeMCU or compatible)
+-   ESP32 microcontroller
 -   MAX30105 sensor
--   RGB status LED
--   WiFi network
--   USB power supply or LiPo battery
+-   WiFi connectivity
 
-### Software Requirements
+### Software Component (ehtrackingserver)
 
--   Arduino IDE for ESP8266 code
--   Python 3.10+ for the server
--   Required libraries:
-    -   TensorFlow Lite for Microcontrollers
-    -   ESP8266WiFi
-    -   MAX30105 sensor library
-    -   Flask and Flask-SocketIO
+-   Flask web server
+-   Real-time data processing
+-   Web-based dashboard
+-   Activity classification
 
-## Installation
+## Setup Guide
 
-### ESP8266 Embedded Code
+### Hardware Setup
 
-1. Open the `ehtracking` folder in the Arduino IDE.
-2. Install the required libraries through the Arduino Library Manager.
-3. Configure WiFi credentials and server settings in `config.h`.
-4. Upload the code to your ESP8266 device.
+1. **Required Components**
 
-### Monitoring Server
+    - ESP32 Development Board
+    - MAX30105 Sensor
+    - USB Cable
+    - WiFi Network
 
-1. Navigate to the `ehtrackingserver` folder.
-2. Create a virtual environment and activate it:
+2. **Wiring**
     ```
-    python -m venv myenv
-    myenv\Scripts\activate
+    MAX30105 <-> ESP32
+    VIN      -> 3.3V
+    GND      -> GND
+    SDA      -> GPIO21
+    SCL      -> GPIO22
+    INT      -> GPIO23
     ```
-3. Install dependencies:
+
+### Software Setup
+
+1. **ESP32 Firmware**
+
+    ```bash
+    # Install required libraries
+    pip install esptool
+
+    # Configure settings in config.h
+    # - WiFi credentials
+    # - Server URL
+    # - Sensor parameters
     ```
+
+2. **Server Setup**
+
+    ```bash
+    # Create virtual environment
+    python -m venv venv
+    source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+    # Install dependencies
     pip install -r requirements.txt
+
+    # Configure server settings
+    cp config.example.py config.py
+    # Edit config.py with your settings
     ```
 
-## Running the System
+## Usage
 
-1. Start the monitoring server:
+### Starting the System
+
+1. **Hardware**
+
+    - Power on the ESP32
+    - Verify WiFi connection
+    - Check sensor initialization
+
+2. **Server**
+
+    ```bash
+    # Start the server
+    python app.py
+
+    # Access the dashboard
+    # Default: http://localhost:5000
     ```
-    cd ehtrackingserver
-    python server.py
+
+### Dashboard Features
+
+1. **Real-time Monitoring**
+
+    - Heart rate graph
+    - SpO2 level display
+    - Activity classification
+    - Historical data view
+
+2. **Alerts and Notifications**
+
+    - Abnormal heart rate alerts
+    - Low SpO2 warnings
+    - Activity change notifications
+
+3. **Data Export**
+    - CSV export
+    - PDF reports
+    - API access
+
+## API Documentation
+
+### Endpoints
+
+1. **Real-time Data**
+
     ```
-2. Power on the ESP8266 device. It will automatically:
-
-    - Connect to the configured WiFi network
-    - Establish a connection with the server
-    - Begin collecting and transmitting data
-
-3. Access the web dashboard by navigating to:
-    ```
-    http://localhost:5000
+    GET /api/realtime
+    Response: {
+        "heart_rate": 75,
+        "spo2": 98,
+        "activity": "walking",
+        "timestamp": "2024-04-07T12:00:00Z"
+    }
     ```
 
-## System Architecture
+2. **Historical Data**
 
-The system follows a task-based architecture for embedded processing and a client-server model for data visualization:
+    ```
+    GET /api/history?start=2024-04-01&end=2024-04-07
+    Response: Array of data points
+    ```
 
-```
-┌─────────────────────┐      WiFi      ┌─────────────────────┐
-│                     │  Transmission   │                     │
-│  ESP8266 Device     │ ─────────────> │  Monitoring Server   │
-│  - Sensor Reading   │                │  - Data Reception   │
-│  - ML Processing    │ <─────────────┐│  - Data Processing  │
-│  - Data Transmission│  Device Cmds   │  - Visualization    │
-└─────────────────────┘                └─────────────────────┘
-                                                │
-                                                │ HTTP/WebSocket
-                                                ▼
-                                       ┌─────────────────────┐
-                                       │                     │
-                                       │  Web Dashboard      │
-                                       │  - Real-time Charts │
-                                       │  - Activity Display │
-                                       │  - System Controls  │
-                                       └─────────────────────┘
-```
+3. **Activity Classification**
+    ```
+    POST /api/classify
+    Request: Sensor data
+    Response: Activity classification
+    ```
 
-## References
+## Troubleshooting
 
--   [Embedded Code Documentation](./ehtracking/README.md)
--   [Server Documentation](./ehtrackingserver/README.md)
+### Common Issues
+
+1. **Sensor Connection**
+
+    - Check wiring
+    - Verify I2C communication
+    - Test sensor with example code
+
+2. **WiFi Connection**
+
+    - Verify credentials
+    - Check network settings
+    - Test connection with ping
+
+3. **Server Issues**
+    - Check port availability
+    - Verify database connection
+    - Monitor system resources
+
+### Debugging Tools
+
+1. **ESP32**
+
+    - Serial monitor
+    - LED indicators
+    - Debug logs
+
+2. **Server**
+    - Log files
+    - Debug mode
+    - Health check endpoint
+
+## Performance Optimization
+
+1. **Data Processing**
+
+    - Batch processing
+    - Data compression
+    - Caching
+
+2. **Network**
+
+    - Connection pooling
+    - Data buffering
+    - Error handling
+
+3. **Resource Usage**
+    - Memory management
+    - CPU optimization
+    - Database indexing
+
+## Security Considerations
+
+1. **Data Protection**
+
+    - HTTPS encryption
+    - Authentication
+    - Data validation
+
+2. **Access Control**
+    - User roles
+    - API keys
+    - Rate limiting
+
+## Contributing
+
+Please follow the contribution guidelines and submit pull requests for improvements.

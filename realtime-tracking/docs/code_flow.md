@@ -1,96 +1,98 @@
-# Code Flow Documentation
+# Tài liệu Luồng Mã
 
-This document provides a detailed explanation of the code flow for the `realtime-tracking` module, including both the ESP8266 embedded code and the server.
+Tài liệu này cung cấp giải thích chi tiết về luồng mã cho module `realtime-tracking`, bao gồm cả mã nhúng ESP8266 và máy chủ.
 
-## ESP8266 Embedded Code (ehtracking)
+## Mã Nhúng ESP8266 (ehtracking)
 
-### Initialization Flow
+### Luồng Khởi Tạo
 
-1. **System Startup**:
+1. **Khởi Động Hệ Thống**:
 
-    - Initializes serial communication for debugging
-    - Sets up the RGB LED for status indication
-    - Configures the MAX30105 sensor for data collection
-    - Initializes TensorFlow Lite model for activity classification
-    - Establishes a WiFi connection using credentials in `config.h`
-    - Connects to the TCP server for data transmission
+    - Khởi tạo giao tiếp nối tiếp để gỡ lỗi.
+    - Thiết lập đèn LED RGB để chỉ báo trạng thái.
+    - Cấu hình cảm biến MAX30102 để thu thập dữ liệu.
+    - Khởi tạo mô hình TensorFlow Lite để phân loại hoạt động.
+    - Thiết lập kết nối WiFi sử dụng thông tin trong `config.h`.
+    - Kết nối với máy chủ TCP để truyền dữ liệu.
 
-2. **Task Creation**:
+2. **Tạo Tác Vụ**:
 
-    - Creates a Sensor Task for data collection with double buffering
-    - Creates a Processing Task for data analysis and transmission
-    - Creates a Status Watchdog Task to monitor system health
+    - Tạo Tác Vụ Cảm Biến để thu thập dữ liệu với đệm kép.
+    - Tạo Tác Vụ Xử Lý để phân tích và truyền dữ liệu.
+    - Tạo Tác Vụ Giám Sát Trạng Thái để theo dõi sức khỏe hệ thống.
 
-3. **State Management**:
-    - System moves from STATE_INIT to STATE_IDLE if initialization is successful
-    - Updates LED color to indicate current system state
+3. **Quản Lý Trạng Thái**:
+    - Hệ thống chuyển từ STATE_INIT sang STATE_IDLE nếu khởi tạo thành công.
+    - Cập nhật màu đèn LED để chỉ báo trạng thái hệ thống hiện tại.
 
-### Main Loop Flow
+### Luồng Vòng Lặp Chính
 
-1. **WiFi Management**:
+1. **Quản Lý WiFi**:
 
-    - Maintains WiFi connectivity
-    - Reconnects automatically if connection is lost
+    - Duy trì kết nối WiFi.
+    - Tự động kết nối lại nếu mất kết nối.
 
-2. **Command Processing**:
+2. **Xử Lý Lệnh**:
 
-    - Checks for incoming TCP commands from server
-    - Processes commands to start/stop monitoring, change settings, etc.
+    - Kiểm tra lệnh TCP đến từ máy chủ.
+    - Xử lý lệnh để bắt đầu/dừng giám sát, thay đổi cài đặt, v.v.
 
-3. **Status Indication**:
-    - Updates LED color based on the current system state
-    - Provides visual feedback of system operation
+3. **Chỉ Báo Trạng Thái**:
+    - Cập nhật màu đèn LED dựa trên trạng thái hệ thống hiện tại.
+    - Cung cấp phản hồi trực quan về hoạt động của hệ thống.
 
-### Sensor Task Flow
+### Luồng Tác Vụ Cảm Biến
 
-1. **Data Collection**:
-    - Samples data from MAX30105 sensor at configured frequency
-    - Implements double buffering to prevent data loss during processing
-    - Signals Processing Task when buffer is ready
+1. **Thu Thập Dữ Liệu**:
+    - Lấy mẫu dữ liệu từ cảm biến MAX30102 với tần số cấu hình.
+    - Thực hiện đệm kép để ngăn mất dữ liệu trong quá trình xử lý.
+    - Báo hiệu Tác Vụ Xử Lý khi đệm sẵn sàng.
 
-### Processing Task Flow
+### Luồng Tác Vụ Xử Lý
 
-1. **Data Analysis**:
+1. **Phân Tích Dữ Liệu**:
 
-    - Processes raw sensor data to extract vital signs
-    - Runs activity classification using TensorFlow Lite model
-    - Computes health metrics and status indicators
+    - Xử lý dữ liệu cảm biến thô để trích xuất các chỉ số sức khỏe.
+    - Chạy phân loại hoạt động bằng mô hình TensorFlow Lite.
+    - Tính toán các chỉ số sức khỏe và chỉ báo trạng thái.
 
-2. **Data Transmission**:
-    - Packages processed data into JSON format
-    - Sends data to server over TCP connection
-    - Handles transmission failures and retry logic
+2. **Truyền Dữ Liệu**:
+    - Đóng gói dữ liệu đã xử lý thành định dạng JSON.
+    - Gửi dữ liệu đến máy chủ qua kết nối TCP.
+    - Xử lý lỗi truyền và logic thử lại.
 
-## Server (ehtrackingserver)
+## Máy Chủ (ehtrackingserver)
 
-1. **Data Reception**:
+### Luồng Tiếp Nhận Dữ Liệu
 
-    - Listens for incoming connections on the specified TCP port
-    - Receives JSON data packets from ESP8266 devices
-    - Parses and validates incoming data
+1. **Lắng Nghe Kết Nối**:
 
-2. **Data Processing**:
+    - Lắng nghe kết nối đến trên cổng TCP được chỉ định.
+    - Nhận các gói dữ liệu JSON từ thiết bị ESP8266.
+    - Phân tích và xác thực dữ liệu đến.
 
-    - Processes incoming vital signs data
-    - Tracks activity classifications
-    - Maintains historical data for visualization
+2. **Xử Lý Dữ Liệu**:
 
-3. **Web Interface**:
+    - Xử lý dữ liệu chỉ số sức khỏe đến.
+    - Theo dõi phân loại hoạt động.
+    - Duy trì dữ liệu lịch sử để trực quan hóa.
 
-    - Provides real-time dashboard visualization
-    - Updates charts and indicators as new data arrives
-    - Displays health status and activity classification results
+3. **Giao Diện Web**:
 
-4. **Command Interface**:
-    - Allows sending commands to connected ESP8266 devices
-    - Provides configuration options for monitoring parameters
-    - Enables remote control of the tracking system
+    - Cung cấp bảng điều khiển trực quan hóa thời gian thực.
+    - Cập nhật biểu đồ và chỉ báo khi có dữ liệu mới.
+    - Hiển thị kết quả phân loại sức khỏe và hoạt động.
 
-## Data Flow Diagram
+4. **Giao Diện Lệnh**:
+    - Cho phép gửi lệnh đến thiết bị ESP8266 kết nối.
+    - Cung cấp tùy chọn cấu hình cho các thông số giám sát.
+    - Cho phép điều khiển từ xa hệ thống theo dõi.
+
+### Sơ Đồ Luồng Dữ Liệu
 
 ```
 +-------------+     +---------------+     +----------------+
-| MAX30105    |---->| Double Buffer |---->| Data Analysis  |
+| MAX30102    |---->| Double Buffer |---->| Data Analysis  |
 | Sensor      |     | System        |     | (TensorFlow)   |
 +-------------+     +---------------+     +----------------+
                                                  |
@@ -101,9 +103,8 @@ This document provides a detailed explanation of the code flow for the `realtime
 +-----------------+     +---------------+     +----------------+
 ```
 
+## Tham Khảo
 
-## References
-
--   [Main README](../README.md)
--   [ESP8266 Embedded Code](../ehtracking/README.md)
--   [Server Documentation](../ehtrackingserver/README.md)
+-   [README Chính](../README.md)
+-   [Mã Nhúng ESP8266](../ehtracking/README.md)
+-   [Tài Liệu Máy Chủ](../ehtrackingserver/README.md)

@@ -17,11 +17,11 @@
 #include "MAX30105.h"
 
 // WiFi configuration
-#define WIFI_SSID "n2heartb_oxi"
-#define WIFI_PASSWORD "n2heartb_oxi"
+#define WIFI_SSID "ARD"
+#define WIFI_PASSWORD "00000000"
 
 // Server configuration
-#define HTTP_SERVER "192.168.137.1"
+#define HTTP_SERVER "20.187.146.163"
 #define HTTP_PORT 8888
 #define TCP_PORT 8889
 

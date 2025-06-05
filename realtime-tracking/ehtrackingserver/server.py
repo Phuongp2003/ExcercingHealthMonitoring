@@ -41,6 +41,31 @@ command_in_progress = False
 # Flask app
 app = Flask(__name__)
 
+# --- Device timeout monitor thread ---
+def device_timeout_monitor(timeout_seconds=15):
+    global connected_devices, is_collecting, device_status, last_device_state_update, device_reported_state, device_is_collecting, last_data_info, command_in_progress
+    while True:
+        time.sleep(2)
+        with lock:
+            if connected_devices and last_device_state_update > 0:
+                elapsed = time.time() - last_device_state_update
+                if elapsed > timeout_seconds:
+                    logger.warning(f"Device timeout: no data/status received for {timeout_seconds}s, marking as disconnected")
+                    # Đóng socket và reset trạng thái
+                    for addr, device in list(connected_devices.items()):
+                        try:
+                            device['socket'].close()
+                        except:
+                            pass
+                    connected_devices.clear()
+                    is_collecting = False
+                    device_status = None
+                    device_reported_state = "DISCONNECTED"
+                    device_is_collecting = False
+                    last_data_info = None
+                    command_in_progress = False
+                    last_device_state_update = 0
+
 # Send TCP command to device with better state tracking
 
 
@@ -286,14 +311,22 @@ def index():
 @app.route('/status')
 def status():
     with lock:
-        # Use the device-reported state as the source of truth
+        # Nếu không còn thiết bị kết nối, trả về trạng thái disconnected và không trả về dữ liệu cũ
+        if not connected_devices:
+            return jsonify({
+                'connected': False,
+                'collecting': False,
+                'last_data': None,
+                'device_status': None,
+                'current_state': "DISCONNECTED",
+                'time_since_update': -1,
+                'command_in_progress': False,
+                'server_tracking_state': is_collecting
+            })
+        # ... existing code ...
         current_state = device_reported_state if device_reported_state != "UNKNOWN" else "Unknown"
         collecting_state = device_is_collecting
-
-        # Add time since last device state update
-        time_since_update = time.time(
-        ) - last_device_state_update if last_device_state_update > 0 else -1
-
+        time_since_update = time.time() - last_device_state_update if last_device_state_update > 0 else -1
         return jsonify({
             'connected': len(connected_devices) > 0,
             'collecting': collecting_state,
@@ -605,6 +638,11 @@ if not os.path.exists('static/js'):
 
 
 if __name__ == '__main__':
+    # Start device timeout monitor
+    timeout_thread = threading.Thread(target=device_timeout_monitor, args=(15,))
+    timeout_thread.daemon = True
+    timeout_thread.start()
+
     # Start TCP server in a thread
     tcp_thread = threading.Thread(target=start_tcp_server)
     tcp_thread.daemon = True

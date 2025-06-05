@@ -129,6 +129,8 @@ void loop()
 {
     // Maintain WiFi connection
     maintainWiFiConnection();
+    // Maintain TCP connection
+    maintainTCPConnection();
 
     // Check for TCP commands
     String command = checkTCPCommands();

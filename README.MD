@@ -51,3 +51,6 @@ This module implements a real-time health monitoring system, using the trained m
 
 -   [Detailed Documentation](./realtime-tracking/README.md)
 -   Includes source code for both ESP8266 hardware and web server
+-   Flow:
+-   ![alt text](.github/images/image.png)
+-   ![alt text](.github/images/image2.png)
